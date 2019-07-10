@@ -7,6 +7,7 @@ module Api where
 
 import Control.Lens hiding (Strict)
 import qualified Data.Aeson as Aeson
+import Control.Monad.Except (MonadError(..))
 
 import Data.Swagger
 import Servant
@@ -24,13 +25,39 @@ type GetTransactionById
   :> QueryParam' '[Required, Strict] "company_id" Int64
   :> Get '[JSON] Transaction
 
+getTransactionById :: (Monad m, MonadError ServantErr m) => Int64 -> Int64 -> m Transaction
+getTransactionById _ _ = throwError err404
+
 type AddTransaction
   = "transaction"
-  :> ReqBody '[JSON] Transaction :> Post '[JSON] Transaction
+  :> ReqBody '[JSON] Transaction
+  :> Post '[JSON] Transaction
+
+addTransaction :: (Monad m, MonadError ServantErr m) => Transaction -> m Transaction
+addTransaction _ = throwError err404
+
+type UpdateTransaction
+  = "transaction"
+  :> ReqBody '[JSON] Transaction
+  :> Put '[JSON] Transaction
+
+updateTransaction :: (Monad m, MonadError ServantErr m) => Transaction -> m Transaction
+updateTransaction _ = throwError err404
+
+type DeleteTransaction
+  = "transaction"
+  :> QueryParam' '[Required, Strict] "id" Int64
+  :> QueryParam' '[Required, Strict] "company_id" Int64
+  :> Delete '[JSON] NoContent
+
+deleteTransaction :: (Monad m, MonadError ServantErr m) => Int64 -> Int64 -> m NoContent
+deleteTransaction _ _ = throwError err404
 
 type TransactionApi
   =    GetTransactionById
   :<|> AddTransaction
+  :<|> UpdateTransaction
+  :<|> DeleteTransaction
 
 ------------------------------------------------------------------------
 -- Liquidator
@@ -58,11 +85,17 @@ swaggerDoc = toSwagger liquidatorApi
 -- Toplevel
 ------------------------------------------------------------------------
 
-type Api = LiquidatorApi :<|> SwaggerApi
+type Api = SwaggerApi :<|> LiquidatorApi
 
 api :: Proxy Api
 api = Proxy
 
-handler = undefined
+server :: Server Api
+server = return swaggerDoc
+  :<|> getTransactionById
+  :<|> addTransaction
+  :<|> updateTransaction
+  :<|> deleteTransaction
 
-app = serve api handler
+app :: Application
+app = serve api server
