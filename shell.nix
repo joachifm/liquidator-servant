@@ -1,4 +1,4 @@
-with (import <nixpkgs>{});
+with (import <nixpkgs>{ config = {}; });
 
 let
   hsDevEnv = haskellPackages.ghcWithPackages (hsPkgs: with hsPkgs; [
