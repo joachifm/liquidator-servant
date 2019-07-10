@@ -2,6 +2,9 @@ with (import <nixpkgs>{ config = {}; });
 
 let
   hsDevEnv = haskellPackages.ghcWithPackages (hsPkgs: with hsPkgs; [
+    cabal-install
+    ghcid
+
     async
     text
 
@@ -10,8 +13,9 @@ let
     lucid
 
     servant
-    servant-lucid
     servant-server
+
+    servant-lucid
     servant-swagger
 
     wai
