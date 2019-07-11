@@ -12,6 +12,8 @@ let
     cassava
     lucid
 
+    optparse-applicative
+
     servant
     servant-server
 
