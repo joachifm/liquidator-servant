@@ -21,7 +21,7 @@ data Config = Config
   { listenPort :: Int
   , dumpConfig :: Bool
   }
-  deriving (Generic, Typeable, Read, Show)
+  deriving (Generic, Typeable)
 
 instance FromJSON Config
 instance ToJSON Config
