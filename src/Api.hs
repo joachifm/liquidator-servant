@@ -24,32 +24,32 @@ import Schema
 ------------------------------------------------------------------------
 
 type GetTransactionById
-  =  "transaction"
-  :> QueryParam' '[Required, Strict] "id" Int64
+  =  QueryParam' '[Required, Strict] "id" Int64
   :> QueryParam' '[Required, Strict] "company_id" Int64
   :> Get '[JSON] Transaction
 
 type AddTransaction
-  = "transaction"
-  :> ReqBody '[JSON] Transaction
+  =  ReqBody '[JSON] Transaction
   :> Post '[JSON] Transaction
 
 type UpdateTransaction
-  = "transaction"
-  :> ReqBody '[JSON] Transaction
+  =  ReqBody '[JSON] Transaction
   :> Put '[JSON] Transaction
 
 type DeleteTransaction
-  = "transaction"
-  :> QueryParam' '[Required, Strict] "id" Int64
+  =  QueryParam' '[Required, Strict] "id" Int64
   :> QueryParam' '[Required, Strict] "company_id" Int64
   :> Delete '[JSON] NoContent
 
 type TransactionApi
-  =    GetTransactionById
-  :<|> AddTransaction
-  :<|> UpdateTransaction
-  :<|> DeleteTransaction
+  =  "api"
+  :> "v1"
+  :> "transaction"
+  :> (      GetTransactionById
+       :<|> AddTransaction
+       :<|> UpdateTransaction
+       :<|> DeleteTransaction
+     )
 
 ------------------------------------------------------------------------
 -- Liquidator
