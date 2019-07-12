@@ -1,7 +1,5 @@
 module Server
-  ( Handle
-  , newHandle
-  , app
+  ( app
   ) where
 
 import Data.Maybe
@@ -106,5 +104,5 @@ nt = Handler . ExceptT . (try :: IO a -> IO (Either ServantErr a))
 server :: Handle -> Server Api
 server ctx = hoistServer api nt (server' ctx)
 
-app :: Handle -> Application
-app ctx = serve api (server ctx)
+app :: IO Application
+app = serve api . server <$> newHandle
