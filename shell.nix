@@ -5,6 +5,7 @@ let
     cabal2nix
     cabal-install
     ghcid
+    hlint
 
     async
     text
