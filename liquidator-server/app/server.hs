@@ -38,6 +38,6 @@ optsParser = info (p <**> helper) idm
 main :: IO ()
 main = do
   cfg <- execParser optsParser
-  when (dumpConfig cfg) $ do
+  when (dumpConfig cfg) $
     LB.putStrLn $ Aeson.encodePretty cfg
   Warp.run (listenPort cfg) =<< app
