@@ -1,0 +1,33 @@
+name:                liquidator-client
+version:             0.1.0.0
+license:             AGPL-3
+--license-file:        LICENSE
+author:              Joachim Fasting
+maintainer:          joachifm@fastmail.fm
+build-type:          Simple
+--extra-source-files:  CHANGELOG.md
+cabal-version:       >=1.10
+
+library
+  build-depends:       base >=4.12 && <4.13
+                     , http-client
+                     , servant-client
+                     , servant-server
+                     , liquidator-api
+  exposed-modules:     Liquidator.Client
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+
+executable liquidator-client
+  main-is:             client.hs
+  build-depends:       base >=4.12 && <4.13
+                     , bytestring
+                     , aeson
+                     , aeson-pretty
+                     , http-client
+                     , servant-client
+                     , servant-server
+                     , liquidator-api
+  other-modules:       Liquidator.Client
+  hs-source-dirs:      app, src
+  default-language:    Haskell2010
