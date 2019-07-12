@@ -39,7 +39,7 @@ data Role = ReporterRole | UserRole | OwnerRole
   deriving (Eq, Generic, Typeable)
 
 instance FromJSON Role
-instance ToJSON Role
+instance ToJSON Role where toEncoding = Aeson.genericToEncoding Aeson.defaultOptions
 instance ToSchema Role
 
 ------------------------------------------------------------------------
@@ -56,7 +56,7 @@ data Pagination = Pagination
   deriving (Generic, Typeable)
 
 instance FromJSON Pagination
-instance ToJSON Pagination
+instance ToJSON Pagination where toEncoding = Aeson.genericToEncoding Aeson.defaultOptions
 instance ToSchema Pagination
 
 ------------------------------------------------------------------------
@@ -73,7 +73,7 @@ data User = User
   deriving (Generic, Typeable)
 
 instance FromJSON User
-instance ToJSON User
+instance ToJSON User where toEncoding = Aeson.genericToEncoding Aeson.defaultOptions
 instance ToSchema User
 
 ------------------------------------------------------------------------
@@ -100,7 +100,7 @@ data Company = Company
   deriving (Generic, Typeable)
 
 instance FromJSON Company
-instance ToJSON Company
+instance ToJSON Company where toEncoding = Aeson.genericToEncoding Aeson.defaultOptions
 
 ------------------------------------------------------------------------
 -- Transaction
@@ -114,7 +114,7 @@ data TransactionType
 instance ToSchema TransactionType
 instance ToParamSchema TransactionType
 instance FromJSON TransactionType
-instance ToJSON TransactionType
+instance ToJSON TransactionType where toEncoding = Aeson.genericToEncoding Aeson.defaultOptions
 
 data Transaction = Transaction
   { transactionId :: Int64
@@ -129,7 +129,7 @@ data Transaction = Transaction
   deriving (Generic, Typeable)
 
 instance FromJSON Transaction
-instance ToJSON Transaction
+instance ToJSON Transaction where toEncoding = Aeson.genericToEncoding Aeson.defaultOptions
 instance ToSchema Transaction
 
 instance Semigroup Transaction where
@@ -147,4 +147,4 @@ data Balance = Balance
   deriving (Generic, Typeable)
 
 instance FromJSON Balance
-instance ToJSON Balance
+instance ToJSON Balance where toEncoding = Aeson.genericToEncoding Aeson.defaultOptions
