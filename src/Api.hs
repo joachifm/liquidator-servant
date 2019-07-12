@@ -11,7 +11,6 @@ module Api
   ) where
 
 import Control.Lens hiding (Strict)
-import qualified Data.Aeson as Aeson
 
 import Data.Swagger
 import Servant

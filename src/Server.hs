@@ -4,8 +4,6 @@ module Server
   ( app
   ) where
 
-import Data.Maybe
-import Control.Monad
 import Control.Exception (throwIO, try)
 import Control.Monad.Except (ExceptT(..))
 import Data.IORef (IORef)
