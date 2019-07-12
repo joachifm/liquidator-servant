@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE StrictData #-}
 
-module Schema
+module Liquidator.Schema
   ( -- * Re-exports
     Int64
   , Text

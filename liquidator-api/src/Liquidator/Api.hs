@@ -3,11 +3,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Api
+module Liquidator.Api
   ( Api
   , api
   , swaggerDoc
-  , module Schema
+  , module Liquidator.Schema
   ) where
 
 import Control.Lens hiding (Strict)
@@ -16,7 +16,7 @@ import Data.Swagger
 import Servant
 import Servant.Swagger
 
-import Schema
+import Liquidator.Schema
 
 ------------------------------------------------------------------------
 -- Transaction

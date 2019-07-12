@@ -1,19 +1,20 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Server
+module Liquidator.Server
   ( app
   ) where
 
 import Control.Exception (throwIO, try)
 import Control.Monad.Except (ExceptT(..))
 import Data.IORef (IORef)
+import Data.Map.Strict (Map)
 import qualified Data.IORef as IORef
 import qualified Data.Map.Strict as Map
-import Data.Map.Strict (Map)
 
 import Servant
+import Servant.Server
 
-import Api
+import Liquidator.Api
 
 ------------------------------------------------------------------------
 -- App environment
@@ -99,7 +100,7 @@ server' ctx = return swaggerDoc
 -- | A natural transformation from our preferred handler context
 -- to the one expected by servant.
 nt :: IO a -> Handler a
-nt = Handler . ExceptT . (try :: IO a -> IO (Either ServantErr a))
+nt = Handler . ExceptT . (try :: IO a -> IO (Either ServerError a))
 
 server :: Handle -> Server Api
 server ctx = hoistServer api nt (server' ctx)

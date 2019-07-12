@@ -16,7 +16,7 @@ import Options.Applicative
 import Servant
 import qualified Network.Wai.Handler.Warp as Warp
 
-import Server
+import Liquidator.Server
 
 data Config = Config
   { listenPort :: Int
