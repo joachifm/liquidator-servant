@@ -132,6 +132,9 @@ instance FromJSON Transaction
 instance ToJSON Transaction
 instance ToSchema Transaction
 
+instance Semigroup Transaction where
+  _ <> r = r
+
 ------------------------------------------------------------------------
 -- Balance
 ------------------------------------------------------------------------

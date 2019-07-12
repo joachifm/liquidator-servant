@@ -39,4 +39,5 @@ main = do
   cfg <- execParser optsParser
   when (dumpConfig cfg) $ do
     LB.putStrLn $ Aeson.encodePretty cfg
-  Warp.run (listenPort cfg) app
+  ctx <- newHandle
+  Warp.run (listenPort cfg) (app ctx)
