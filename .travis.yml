@@ -1,0 +1,34 @@
+language: nix
+
+notifications:
+  email: false
+
+branches:
+  only:
+    - master
+
+git:
+  quiet: true
+  depth: 1
+
+cache:
+  directories:
+    # Cabal
+    - $HOME/.cabal/packages
+    - $HOME/.cabal/store
+    - $HOME/.cabal/bin
+
+before_script:
+  - export PATH=$HOME/.cabal/bin:$HOME/.nix-profile/bin:$PATH
+
+script:
+  - ./cabal new-update
+  - ./cabal new-build liquidator-api
+
+before_cache:
+  # Cabal
+  - rm -f $HOME/.cabal/packages/hackage.haskell.org/build-reports.log
+  - rm -f $HOME/.cabal/packages/hackage.haskell.org/00-index*
+  - rm -f $HOME/.cabal/packages/hackage.haskell.org/01-index*
+  - rm -f $HOME/.cabal/packages/hackage.haskell.org/*.json
+  - rm -rf $HOME/.cabal/packages/hackage.haskell.org/hackage-security-lock
