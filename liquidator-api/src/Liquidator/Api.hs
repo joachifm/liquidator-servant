@@ -5,7 +5,11 @@
 module Liquidator.Api
   ( Api
   , api
+
+  , LiquidatorApi
+  , liquidatorApi
   , swaggerDoc
+
   , module Liquidator.Schema
   ) where
 
