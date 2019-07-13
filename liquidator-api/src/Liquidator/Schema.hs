@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE StrictData #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module Liquidator.Schema
   ( -- * Re-exports
@@ -21,15 +22,25 @@ module Liquidator.Schema
   , Transaction(..)
   ) where
 
-import GHC.Generics (Generic)
-import Data.Typeable (Typeable)
 import Data.Int (Int64)
 import Data.Text (Text)
+import Data.Typeable (Typeable)
+import GHC.Generics (Generic)
+import qualified Data.Char as Char
+import qualified Data.List as List
+
 import qualified Data.Aeson as Aeson
 import Data.Aeson (FromJSON(..), ToJSON(..))
 import Data.Swagger
 
 import Servant.Swagger
+
+lowerFirst :: String -> String
+lowerFirst [] = []
+lowerFirst (x:xs) = Char.toLower x : xs
+
+dropLabelPrefix :: String -> String -> String
+dropLabelPrefix labelPrefix = lowerFirst . drop (length labelPrefix)
 
 ------------------------------------------------------------------------
 -- Role
@@ -55,8 +66,19 @@ data Pagination = Pagination
   }
   deriving (Generic, Typeable)
 
-instance FromJSON Pagination
-instance ToJSON Pagination where toEncoding = Aeson.genericToEncoding Aeson.defaultOptions
+-- TODO(joachifm) make this generic somehow (?)
+paginationJsonOptions :: Aeson.Options
+paginationJsonOptions = Aeson.defaultOptions
+  { Aeson.fieldLabelModifier = dropLabelPrefix "pagination"
+  }
+
+instance FromJSON Pagination where
+  parseJSON = Aeson.genericParseJSON paginationJsonOptions
+
+instance ToJSON Pagination where
+  toEncoding = Aeson.genericToEncoding paginationJsonOptions
+  toJSON = Aeson.genericToJSON paginationJsonOptions
+
 instance ToSchema Pagination
 
 ------------------------------------------------------------------------
@@ -72,8 +94,18 @@ data User = User
   }
   deriving (Generic, Typeable)
 
-instance FromJSON User
-instance ToJSON User where toEncoding = Aeson.genericToEncoding Aeson.defaultOptions
+userJsonOptions :: Aeson.Options
+userJsonOptions = Aeson.defaultOptions
+  { Aeson.fieldLabelModifier = dropLabelPrefix "user"
+  }
+
+instance FromJSON User where
+  parseJSON = Aeson.genericParseJSON userJsonOptions
+
+instance ToJSON User where
+  toEncoding = Aeson.genericToEncoding userJsonOptions
+  toJSON = Aeson.genericToJSON userJsonOptions
+
 instance ToSchema User
 
 ------------------------------------------------------------------------
@@ -88,6 +120,18 @@ data UserCreate = UserCreate
   }
   deriving (Generic, Typeable)
 
+userCreateJsonOptions :: Aeson.Options
+userCreateJsonOptions = Aeson.defaultOptions
+  { Aeson.fieldLabelModifier = dropLabelPrefix "userCreate"
+  }
+
+instance FromJSON UserCreate where
+  parseJSON = Aeson.genericParseJSON userCreateJsonOptions
+
+instance ToJSON UserCreate where
+  toEncoding = Aeson.genericToEncoding userCreateJsonOptions
+  toJSON = Aeson.genericToJSON userCreateJsonOptions
+
 ------------------------------------------------------------------------
 -- Company
 ------------------------------------------------------------------------
@@ -99,8 +143,17 @@ data Company = Company
   }
   deriving (Generic, Typeable)
 
-instance FromJSON Company
-instance ToJSON Company where toEncoding = Aeson.genericToEncoding Aeson.defaultOptions
+companyJsonOptions :: Aeson.Options
+companyJsonOptions = Aeson.defaultOptions
+  { Aeson.fieldLabelModifier = dropLabelPrefix "company"
+  }
+
+instance FromJSON Company where
+  parseJSON = Aeson.genericParseJSON companyJsonOptions
+
+instance ToJSON Company where
+  toEncoding = Aeson.genericToEncoding companyJsonOptions
+  toJSON = Aeson.genericToJSON companyJsonOptions
 
 ------------------------------------------------------------------------
 -- Transaction
@@ -128,8 +181,21 @@ data Transaction = Transaction
   }
   deriving (Generic, Typeable)
 
-instance FromJSON Transaction
-instance ToJSON Transaction where toEncoding = Aeson.genericToEncoding Aeson.defaultOptions
+deriving instance Show TransactionType
+deriving instance Show Transaction
+
+transactionJsonOptions :: Aeson.Options
+transactionJsonOptions = Aeson.defaultOptions
+  { Aeson.fieldLabelModifier = dropLabelPrefix "transaction"
+  }
+
+instance FromJSON Transaction where
+  parseJSON = Aeson.genericParseJSON transactionJsonOptions
+
+instance ToJSON Transaction where
+  toJSON = Aeson.genericToJSON transactionJsonOptions
+  toEncoding = Aeson.genericToEncoding transactionJsonOptions
+
 instance ToSchema Transaction
 
 instance Semigroup Transaction where
@@ -146,5 +212,14 @@ data Balance = Balance
   }
   deriving (Generic, Typeable)
 
-instance FromJSON Balance
-instance ToJSON Balance where toEncoding = Aeson.genericToEncoding Aeson.defaultOptions
+balanceJsonOptions :: Aeson.Options
+balanceJsonOptions = Aeson.defaultOptions
+  { Aeson.fieldLabelModifier = dropLabelPrefix "balance"
+  }
+
+instance FromJSON Balance where
+  parseJSON = Aeson.genericParseJSON balanceJsonOptions
+
+instance ToJSON Balance where
+  toJSON = Aeson.genericToJSON balanceJsonOptions
+  toEncoding = Aeson.genericToEncoding balanceJsonOptions
