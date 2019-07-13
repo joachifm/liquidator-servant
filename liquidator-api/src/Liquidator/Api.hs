@@ -23,6 +23,20 @@ import Servant.Swagger
 import Liquidator.Schema
 
 ------------------------------------------------------------------------
+-- Balance
+------------------------------------------------------------------------
+
+type GetBalanceByDate
+  =  QueryParam' '[Required, Strict] "company_id" Int64
+  :> QueryParam' '[Required, Strict] "date" Text
+  :> Get '[JSON] Balance
+
+type BalanceApi
+  = "balance"
+  :> (      GetBalanceByDate
+     )
+
+------------------------------------------------------------------------
 -- Transaction
 ------------------------------------------------------------------------
 
@@ -45,9 +59,7 @@ type DeleteTransaction
   :> Delete '[JSON] NoContent
 
 type TransactionApi
-  =  "api"
-  :> "v1"
-  :> "transaction"
+  = "transaction"
   :> (      GetTransactionById
        :<|> AddTransaction
        :<|> UpdateTransaction
@@ -58,7 +70,7 @@ type TransactionApi
 -- Liquidator
 ------------------------------------------------------------------------
 
-type LiquidatorApi = TransactionApi
+type LiquidatorApi = "api" :> "v1" :> (TransactionApi :<|> BalanceApi)
 
 liquidatorApi :: Proxy LiquidatorApi
 liquidatorApi = Proxy
