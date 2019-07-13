@@ -79,7 +79,8 @@ instance ToJSON Pagination where
   toEncoding = Aeson.genericToEncoding paginationJsonOptions
   toJSON = Aeson.genericToJSON paginationJsonOptions
 
-instance ToSchema Pagination
+instance ToSchema Pagination where
+  declareNamedSchema = genericDeclareNamedSchema (fromAesonOptions paginationJsonOptions)
 
 ------------------------------------------------------------------------
 -- User
@@ -106,7 +107,8 @@ instance ToJSON User where
   toEncoding = Aeson.genericToEncoding userJsonOptions
   toJSON = Aeson.genericToJSON userJsonOptions
 
-instance ToSchema User
+instance ToSchema User where
+  declareNamedSchema = genericDeclareNamedSchema (fromAesonOptions userJsonOptions)
 
 ------------------------------------------------------------------------
 -- UserCreate
@@ -196,7 +198,8 @@ instance ToJSON Transaction where
   toJSON = Aeson.genericToJSON transactionJsonOptions
   toEncoding = Aeson.genericToEncoding transactionJsonOptions
 
-instance ToSchema Transaction
+instance ToSchema Transaction where
+  declareNamedSchema = genericDeclareNamedSchema (fromAesonOptions transactionJsonOptions)
 
 instance Semigroup Transaction where
   _ <> r = r
@@ -223,3 +226,6 @@ instance FromJSON Balance where
 instance ToJSON Balance where
   toJSON = Aeson.genericToJSON balanceJsonOptions
   toEncoding = Aeson.genericToEncoding balanceJsonOptions
+
+instance ToSchema Balance where
+  declareNamedSchema = genericDeclareNamedSchema (fromAesonOptions balanceJsonOptions)
