@@ -50,8 +50,8 @@ type Url = Text
 
 data Pagination = Pagination
   { paginationPage :: Int64
-  , next :: Url
-  , previous :: Url
+  , paginationNext :: Url
+  , paginationPrevious :: Url
   }
   deriving (Generic, Typeable)
 
