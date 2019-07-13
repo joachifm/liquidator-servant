@@ -1,0 +1,3 @@
+#! /bin/sh -eu
+topdir=$(cd "$(dirname "$0")" ; pwd -P)
+exec nix-shell "$topdir"/shell.nix --run "cabal ${*}"
