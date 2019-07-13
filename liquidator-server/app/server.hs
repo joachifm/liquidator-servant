@@ -19,7 +19,7 @@ import qualified Network.Wai.Handler.Warp as Warp
 import Liquidator.Server
 
 data Config = Config
-  { listenPort :: Int
+  { listenPort :: Warp.Port
   , dumpConfig :: Bool
   }
   deriving (Generic, Typeable)
