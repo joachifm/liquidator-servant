@@ -6,24 +6,6 @@ let
     cabal-install
     ghcid
     hlint
-
-    async
-    text
-
-    aeson
-    cassava
-    lucid
-
-    optparse-applicative
-
-    servant
-    servant-server
-
-    servant-lucid
-    servant-swagger
-
-    wai
-    warp
   ]);
 in
 
