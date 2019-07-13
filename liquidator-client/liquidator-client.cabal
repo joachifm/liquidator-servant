@@ -10,9 +10,11 @@ cabal-version:       >=1.10
 
 library
   build-depends:       base >=4.12 && <4.13
-                     , http-client
-                     , servant-client
+                     , http-client >= 0.6.4 && <1
+                     , servant-client >=0.16 && <1
                      , servant-server
+
+                     -- Local
                      , liquidator-api
   exposed-modules:     Liquidator.Client
   hs-source-dirs:      src
@@ -22,12 +24,12 @@ executable liquidator-client
   main-is:             client.hs
   build-depends:       base >=4.12 && <4.13
                      , bytestring
+                     , servant-client
+                     , http-client
                      , aeson
                      , aeson-pretty
-                     , http-client
-                     , servant-client
-                     , servant-server
-                     , liquidator-api
-  other-modules:       Liquidator.Client
-  hs-source-dirs:      app, src
+
+                     -- Local
+                     , liquidator-client
+  hs-source-dirs:      app
   default-language:    Haskell2010
