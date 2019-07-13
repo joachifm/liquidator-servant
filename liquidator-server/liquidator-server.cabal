@@ -15,24 +15,25 @@ library
                      , mtl
                      , servant
                      , servant-server
+
+                     -- Local
                      , liquidator-api
   hs-source-dirs:      src
   default-language:    Haskell2010
 
 executable liquidator-server
   main-is:             server.hs
-  other-modules:       Liquidator.Server
   build-depends:       base >=4.12 && <4.13
                      , bytestring
-                     , containers
-                     , mtl
                      , servant-server
-                     , liquidator-api
+
+                     -- Local
+                     , liquidator-server
 
                      -- Component specific
                      , aeson
                      , aeson-pretty
                      , optparse-applicative
                      , warp
-  hs-source-dirs:      app, src
+  hs-source-dirs:      app
   default-language:    Haskell2010
