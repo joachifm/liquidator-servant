@@ -19,6 +19,8 @@ library
                      , servant-swagger
                      , swagger2
                      , text
+                     , generic-arbitrary
+                     , QuickCheck
   hs-source-dirs:      src
   default-language:    Haskell2010
 
@@ -34,6 +36,8 @@ executable liquidator-swagger
                      , servant-swagger
                      , swagger2
                      , text
+                     , generic-arbitrary
+                     , QuickCheck
                      -- Component specific dependencies
                      , aeson-pretty
   hs-source-dirs:      app, src

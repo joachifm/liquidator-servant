@@ -28,6 +28,11 @@ import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import qualified Data.Char as Char
 import qualified Data.List as List
+import qualified Data.Text as Text
+
+import qualified Test.QuickCheck as QC
+import qualified Test.QuickCheck.Arbitrary as QC
+import qualified Test.QuickCheck.Arbitrary.Generic as QC
 
 import qualified Data.Aeson as Aeson
 import Data.Aeson (FromJSON(..), ToJSON(..))
@@ -43,11 +48,22 @@ dropLabelPrefix :: String -> String -> String
 dropLabelPrefix labelPrefix = lowerFirst . drop (length labelPrefix)
 
 ------------------------------------------------------------------------
+-- Orphan Arbitrary instances
+------------------------------------------------------------------------
+
+instance QC.Arbitrary Text where
+  arbitrary = QC.oneof [ pure mempty, pure (Text.pack "<placeholder>") ]
+
+------------------------------------------------------------------------
 -- Role
 ------------------------------------------------------------------------
 
 data Role = ReporterRole | UserRole | OwnerRole
   deriving (Eq, Generic, Typeable)
+
+instance QC.Arbitrary Role where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
 
 instance FromJSON Role
 instance ToJSON Role where toEncoding = Aeson.genericToEncoding Aeson.defaultOptions
@@ -65,6 +81,10 @@ data Pagination = Pagination
   , paginationPrevious :: Url
   }
   deriving (Generic, Typeable)
+
+instance QC.Arbitrary Pagination where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
 
 -- TODO(joachifm) make this generic somehow (?)
 paginationJsonOptions :: Aeson.Options
@@ -95,6 +115,10 @@ data User = User
   }
   deriving (Generic, Typeable)
 
+instance QC.Arbitrary User where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
+
 userJsonOptions :: Aeson.Options
 userJsonOptions = Aeson.defaultOptions
   { Aeson.fieldLabelModifier = dropLabelPrefix "user"
@@ -122,6 +146,10 @@ data UserCreate = UserCreate
   }
   deriving (Generic, Typeable)
 
+instance QC.Arbitrary UserCreate where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
+
 userCreateJsonOptions :: Aeson.Options
 userCreateJsonOptions = Aeson.defaultOptions
   { Aeson.fieldLabelModifier = dropLabelPrefix "userCreate"
@@ -145,6 +173,10 @@ data Company = Company
   }
   deriving (Generic, Typeable)
 
+instance QC.Arbitrary Company where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
+
 companyJsonOptions :: Aeson.Options
 companyJsonOptions = Aeson.defaultOptions
   { Aeson.fieldLabelModifier = dropLabelPrefix "company"
@@ -166,6 +198,10 @@ data TransactionType
   | Expense
   deriving (Generic, Typeable)
 
+instance QC.Arbitrary TransactionType where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
+
 instance ToSchema TransactionType
 instance ToParamSchema TransactionType
 instance FromJSON TransactionType
@@ -182,6 +218,10 @@ data Transaction = Transaction
   , transactionNotes :: Text
   }
   deriving (Generic, Typeable)
+
+instance QC.Arbitrary Transaction where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
 
 deriving instance Show TransactionType
 deriving instance Show Transaction
@@ -214,6 +254,10 @@ data Balance = Balance
   , balanceMoney :: Int64
   }
   deriving (Generic, Typeable)
+
+instance QC.Arbitrary Balance where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
 
 balanceJsonOptions :: Aeson.Options
 balanceJsonOptions = Aeson.defaultOptions
