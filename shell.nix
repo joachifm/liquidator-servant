@@ -30,4 +30,5 @@ in
 mkShell {
   name = "dev-shell";
   buildInputs = [ hsDevEnv ];
+  inherit hsDevEnv;
 }
