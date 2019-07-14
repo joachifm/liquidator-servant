@@ -5,6 +5,7 @@
 module Liquidator.Api
   ( Api
   , api
+  , apiVersion
 
   , LiquidatorApi
   , liquidatorApi
@@ -68,10 +69,13 @@ liquidatorApi = Proxy
 
 type SwaggerApi = "swagger.json" :> Get '[JSON] Swagger
 
+apiVersion :: Text
+apiVersion = "1.0"
+
 swaggerDoc :: Swagger
 swaggerDoc = toSwagger liquidatorApi
   & info.title       .~ "liquidator"
-  & info.version     .~ "1.0"
+  & info.version     .~ apiVersion
   & info.description ?~ "liquidator API"
   & info.license     ?~ ("MIT" & url ?~ URL "https://opensource.org/licenses/MIT")
 
