@@ -6,6 +6,7 @@ notifications:
 branches:
   only:
     - master
+    - travis
 
 git:
   quiet: true
@@ -19,14 +20,17 @@ cache:
     - $HOME/.cabal/bin
 
 before_script:
+  - export LC_ALL=C
   - export PATH=$HOME/.cabal/bin:$HOME/.nix-profile/bin:$PATH
 
-script:
+install:
+  - ./cabal --version
   - ./cabal new-update
-  - ./cabal new-install --only-dependencies --overwrite-policy=always all
-  - ./cabal new-build liquidator-api
-  - ./cabal new-build liquidator-server
-  - ./cabal new-build liquidator-client
+  - ./cabal new-install --disable-optimization --enable-deterministic --lib --dependencies-only --overwrite-policy=always all
+  - ./cabal new-build   --disable-optimization --enable-deterministic --enable-tests all
+
+script:
+  - ./cabal new-run exe:liquidator-swagger
 
 before_cache:
   # Cabal
