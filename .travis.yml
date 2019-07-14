@@ -25,6 +25,8 @@ script:
   - ./cabal new-update
   - ./cabal new-install --only-dependencies --overwrite-policy=always all
   - ./cabal new-build liquidator-api
+  - ./cabal new-build liquidator-server
+  - ./cabal new-build liquidator-client
 
 before_cache:
   # Cabal
