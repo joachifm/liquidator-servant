@@ -23,6 +23,7 @@ before_script:
 
 script:
   - ./cabal new-update
+  - ./cabal new-install --only-dependencies --overwrite-policy=always all
   - ./cabal new-build liquidator-api
 
 before_cache:
