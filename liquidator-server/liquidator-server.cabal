@@ -35,6 +35,6 @@ executable liquidator-server
                      , aeson-pretty
                      , optparse-applicative
                      , warp
-  ghc-options:         -threaded "-with-rtsopts=-N"
+  ghc-options:         -rtsopts -threaded "-with-rtsopts=-N"
   hs-source-dirs:      app
   default-language:    Haskell2010
