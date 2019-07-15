@@ -13,8 +13,11 @@ getTransactionById :: Int64 -> Int64 -> ClientM Transaction
 addTransaction :: Transaction -> ClientM Transaction
 updateTransaction :: Transaction -> ClientM Transaction
 deleteTransaction :: Int64 -> Int64 -> ClientM NoContent
+getBalanceByDate :: Int64 -> Text -> ClientM Balance
 _ :<|> (      getTransactionById
          :<|> addTransaction
          :<|> updateTransaction
-         :<|> deleteTransaction)
+         :<|> deleteTransaction
+       )
+  :<|> getBalanceByDate
   = client api

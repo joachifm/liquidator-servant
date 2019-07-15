@@ -19,6 +19,8 @@ module Liquidator.Schema
   , User(..)
   , UserCreate(..)
 
+  , Balance(..)
+
   , TransactionType(..)
   , Transaction(..)
   ) where
