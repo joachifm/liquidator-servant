@@ -31,7 +31,9 @@ data Handle = Handle
 dummyDb :: Map Int64 Transaction
 dummyDb = Map.fromList . zipWith assign [ 1 .. ] $
   [ Transaction 0 1 Nothing "1970-01-01" 1000 Income "" ""
-  , Transaction 0 1 Nothing "1970-01-01" 1000 Income "" ""
+  , Transaction 0 1 Nothing "1970-01-02" 1000 Income "" ""
+  , Transaction 0 1 Nothing "1970-01-03" 1000 Income "" ""
+  , Transaction 0 1 Nothing "1970-01-04" 3000 Expense "" ""
   ]
   where
     assign txid tx = (txid, tx { transactionId = txid })
