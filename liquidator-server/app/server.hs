@@ -40,4 +40,5 @@ main = do
   cfg <- execParser optsParser
   when (dumpConfig cfg) $
     LB.putStrLn $ Aeson.encodePretty cfg
+  putStrLn $ "Starting server listening on port " <> show (listenPort cfg)
   Warp.run (listenPort cfg) =<< app
