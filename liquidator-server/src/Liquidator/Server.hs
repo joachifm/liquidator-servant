@@ -87,6 +87,41 @@ deleteTransaction ctx txid companyId_ = do
     else throwIO err404
 
 ------------------------------------------------------------------------
+-- Balance
+------------------------------------------------------------------------
+
+balanceMoneyByDate
+  :: Int64
+  -> Text
+  -> Map Int64 Transaction
+  -> Int64
+balanceMoneyByDate companyId_ date
+  = Map.foldl' (flip ((+) . transactionMoneyToInt)) 0
+  . Map.filter transactionByDatePredicate
+  where
+    transactionMoneyToInt :: Transaction -> Int64
+    transactionMoneyToInt tx =
+      (case transactionType tx of
+         Income -> id
+         Expense -> negate)
+      (transactionMoney tx)
+
+    transactionByDatePredicate :: (Transaction -> Bool)
+    transactionByDatePredicate p =
+         ((== companyId_) . transactionCompanyId) p
+      && ((<= date) . transactionDate) p
+
+getBalanceByDate
+  :: Handle
+  -> Int64
+  -> Text
+  -> IO Balance
+getBalanceByDate ctx companyId_ date =
+  Balance <$> pure companyId_
+          <*> pure date
+          <*> balanceMoneyByDate companyId_ date <$> IORef.readIORef (transactionDb ctx)
+
+------------------------------------------------------------------------
 -- Server
 ------------------------------------------------------------------------
 
@@ -94,10 +129,12 @@ deleteTransaction ctx txid companyId_ = do
 -- the servant handler context.
 server' :: Handle -> ServerT Api IO
 server' ctx = return swaggerDoc
-  :<|> getTransactionById ctx
-  :<|> addTransaction ctx
-  :<|> updateTransaction ctx
-  :<|> deleteTransaction ctx
+  :<|> (      getTransactionById ctx
+         :<|> addTransaction ctx
+         :<|> updateTransaction ctx
+         :<|> deleteTransaction ctx
+       )
+  :<|> getBalanceByDate ctx
 
 -- | A natural transformation from our preferred handler context
 -- to the one expected by servant.
