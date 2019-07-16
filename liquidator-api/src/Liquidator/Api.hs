@@ -139,14 +139,14 @@ liquidatorApi = Proxy
 type SwaggerApi = "swagger.json" :> Get '[JSON] Swagger
 
 apiVersion :: Text
-apiVersion = "1.0"
+apiVersion = "1.0.0"
 
 swaggerDoc :: Swagger
 swaggerDoc = toSwagger liquidatorApi
   & info.title       .~ "liquidator"
   & info.version     .~ apiVersion
   & info.description ?~ "liquidator API"
-  & info.license     ?~ ("MIT" & url ?~ URL "https://opensource.org/licenses/MIT")
+  & info.license     ?~ ("AGPL-3.0" & url ?~ URL "https://opensource.org/licenses/AGPL-3.0")
 
 ------------------------------------------------------------------------
 -- Toplevel
