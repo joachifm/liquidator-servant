@@ -23,6 +23,63 @@ import Servant.Swagger
 import Liquidator.Schema
 
 ------------------------------------------------------------------------
+-- Recurring
+------------------------------------------------------------------------
+
+type GetRecurringTransaction
+  =  QueryParam' '[Required, Strict] "company_id" Int64
+  :> QueryParam' '[Required, Strict] "id" Int64
+  :> Get '[JSON] RecurringTransaction
+
+type AddRecurringTransaction
+  =  ReqBody '[JSON] RecurringTransaction
+  :> Post '[JSON] RecurringTransaction
+
+type UpdateRecurringTransaction
+  =  ReqBody '[JSON] RecurringTransaction
+  :> Put '[JSON] RecurringTransaction
+
+type DeleteRecurringTransaction
+  =  QueryParam' '[Required, Strict] "company_id" Int64
+  :> QueryParam' '[Required, Strict] "id" Int64
+  :> Delete '[JSON] NoContent
+
+-- TODO(joachifm) result should be pagination
+type GetAllRecurringTransactions
+  =  QueryParam' '[Required, Strict] "company_id" Int64
+  :> Get '[JSON] [RecurringTransaction]
+
+-- TODO(joachifm) result should be pagination
+type GetActiveRecurringTransactions
+  =  QueryParam' '[Required, Strict] "company_id" Int64
+  :> Get '[JSON] [RecurringTransaction]
+
+-- TODO(joachifm) result should be pagination
+type GetRecurringTransactionsByDate
+  =  QueryParam' '[Required, Strict] "company_id" Int64
+  :> QueryParam' '[Required, Strict] "date_param" Text
+  :> Get '[JSON] [RecurringTransaction]
+
+-- TODO(joachifm) result should be pagination
+type GetRecurringTransactionsByDateRange
+  =  QueryParam' '[Required, Strict] "company_id" Int64
+  :> QueryParam' '[Required, Strict] "start_date" Text
+  :> QueryParam' '[Required, Strict] "end_date" Text
+  :> Get '[JSON] [RecurringTransaction]
+
+type RecurringApi
+  =  "recurring"
+  :> (    GetRecurringTransaction
+     :<|> AddRecurringTransaction
+     :<|> UpdateRecurringTransaction
+     :<|> DeleteRecurringTransaction
+     :<|> ( "all" :> GetAllRecurringTransactions )
+     :<|> ( "active" :> GetActiveRecurringTransactions )
+     :<|> ( "byDate" :> GetRecurringTransactionsByDate )
+     :<|> ( "byDateRange" :> GetRecurringTransactionsByDateRange )
+     )
+
+------------------------------------------------------------------------
 -- Company
 ------------------------------------------------------------------------
 
@@ -127,6 +184,7 @@ type LiquidatorApi
   :> (     TransactionApi
       :<|> BalanceApi
       :<|> CompanyApi
+      :<|> RecurringApi
      )
 
 liquidatorApi :: Proxy LiquidatorApi
