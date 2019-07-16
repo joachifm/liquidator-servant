@@ -42,6 +42,19 @@ newHandle :: IO Handle
 newHandle = Handle <$> IORef.newIORef dummyDb <*> IORef.newIORef 1
 
 ------------------------------------------------------------------------
+-- Company
+------------------------------------------------------------------------
+
+getCompanyById :: Handle -> Int64 -> IO Company
+getCompanyById ctx companyId_ = do
+  -- TODO(joachifm) return actual data
+  return $! Company
+    { companyId = companyId_
+    , companyName = "Acme"
+    , companyOrgNr = "12345"
+    }
+
+------------------------------------------------------------------------
 -- Transaction
 ------------------------------------------------------------------------
 
@@ -134,7 +147,10 @@ server' ctx = return swaggerDoc
          :<|> updateTransaction ctx
          :<|> deleteTransaction ctx
        )
-  :<|> getBalanceByDate ctx
+  :<|> (      getBalanceByDate ctx
+       )
+  :<|> (      getCompanyById ctx
+       )
 
 -- | A natural transformation from our preferred handler context
 -- to the one expected by servant.

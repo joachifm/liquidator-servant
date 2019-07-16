@@ -185,6 +185,8 @@ companyJsonOptions = Aeson.defaultOptions
   { Aeson.fieldLabelModifier = dropLabelPrefix "company"
   }
 
+instance ToSchema Company
+
 instance FromJSON Company where
   parseJSON = Aeson.genericParseJSON companyJsonOptions
 
