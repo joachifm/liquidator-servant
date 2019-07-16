@@ -176,6 +176,10 @@ server' ctx = return swaggerDoc
   :<|> (      getCompanyById ctx
        )
 
+------------------------------------------------------------------------
+-- Servant application
+------------------------------------------------------------------------
+
 -- | A natural transformation from our preferred handler context
 -- to the one expected by servant.
 nt :: IO a -> Handler a
