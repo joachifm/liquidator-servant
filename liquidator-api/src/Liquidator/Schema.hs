@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE StandaloneDeriving #-}
 
 module Liquidator.Schema
   ( -- * Re-exports
@@ -313,9 +312,6 @@ data Transaction = Transaction
 instance QC.Arbitrary Transaction where
   arbitrary = QC.genericArbitrary
   shrink = QC.genericShrink
-
-deriving instance Show TransactionType
-deriving instance Show Transaction
 
 transactionJsonOptions :: Aeson.Options
 transactionJsonOptions = Aeson.defaultOptions
