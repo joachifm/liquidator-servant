@@ -19,5 +19,8 @@ _ :<|> (      getTransactionById
          :<|> updateTransaction
          :<|> deleteTransaction
        )
-  :<|> getBalanceByDate
+  :<|> (      getBalanceByDate
+       )
+  :<|> (      getCompanyById
+       )
   = client api
