@@ -23,6 +23,7 @@ module Liquidator.Schema
 
   , TransactionType(..)
   , Transaction(..)
+  , TransactionTemplate(..)
   ) where
 
 import Data.Int (Int64)
@@ -193,6 +194,38 @@ instance FromJSON Company where
 instance ToJSON Company where
   toEncoding = Aeson.genericToEncoding companyJsonOptions
   toJSON = Aeson.genericToJSON companyJsonOptions
+
+------------------------------------------------------------------------
+-- Transaction template
+------------------------------------------------------------------------
+
+data TransactionTemplate = TransactionTemplate
+  { transactionTemplateId :: Int64
+  , transactionTemplateMoney :: Int64
+  , transactionTemplateType :: TransactionType
+  , transactionTemplateDescription :: Text
+  , transactionTemplateNote :: Text
+  }
+  deriving (Generic, Typeable)
+
+instance QC.Arbitrary TransactionTemplate where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
+
+transactionTemplateJsonOptions :: Aeson.Options
+transactionTemplateJsonOptions = Aeson.defaultOptions
+  { Aeson.fieldLabelModifier = dropLabelPrefix "transactionTemplate"
+  }
+
+instance ToSchema TransactionTemplate where
+  declareNamedSchema = genericDeclareNamedSchema (fromAesonOptions transactionTemplateJsonOptions)
+
+instance FromJSON TransactionTemplate where
+  parseJSON = Aeson.genericParseJSON transactionTemplateJsonOptions
+
+instance ToJSON TransactionTemplate where
+  toJSON = Aeson.genericToJSON transactionTemplateJsonOptions
+  toEncoding = Aeson.genericToEncoding transactionTemplateJsonOptions
 
 ------------------------------------------------------------------------
 -- Transaction
