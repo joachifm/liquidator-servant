@@ -71,12 +71,50 @@ type DeleteTransaction
   :> QueryParam' '[Required, Strict] "company_id" Int64
   :> Delete '[JSON] NoContent
 
+type InsertTransactionArray
+  =  ReqBody '[JSON] [Transaction]
+  :> Post '[JSON] [Transaction]
+
+-- TODO(joachifm) returns transaction pagination
+type GetAllTransaction
+  =  QueryParam' '[Required, Strict] "company_id" Int64
+  :> Get '[JSON] [Transaction]
+
+-- TODO(joachifm) returns transaction pagination
+type GetTransactionsByDate
+  =  QueryParam' '[Required, Strict] "company_id" Int64
+  :> QueryParam' '[Required, Strict] "date_param" Text
+  :> Get '[JSON] [Transaction]
+
+-- TODO(joachifm) returns transaction pagination
+type GetTransactionsByDateRange
+  =  QueryParam' '[Required, Strict] "company_id" Int64
+  :> QueryParam' '[Required, Strict] "start_date" Text
+  :> QueryParam' '[Required, Strict] "end_date" Text
+  :> Get '[JSON] [Transaction]
+
+-- TODO(joachifm) returns transaction pagination
+type GetAllIncomeTransactions
+  =  QueryParam' '[Required, Strict] "company_id" Int64
+  :> Get '[JSON] [Transaction]
+
+-- TODO(joachifm) returns transaction pagination
+type GetAllExpenseTransactions
+  =  QueryParam' '[Required, Strict] "company_id" Int64
+  :> Get '[JSON] [Transaction]
+
 type TransactionApi
   = "transaction"
   :> (      GetTransactionById
        :<|> AddTransaction
        :<|> UpdateTransaction
        :<|> DeleteTransaction
+       :<|> ( "insertArray" :> InsertTransactionArray )
+       :<|> ( "all" :> GetAllTransaction )
+       :<|> ( "byDate" :> GetTransactionsByDate )
+       :<|> ( "byDateRange" :> GetTransactionsByDateRange )
+       :<|> ( "income" :> "all" :> GetAllIncomeTransactions )
+       :<|> ( "expense" :> "all" :> GetAllExpenseTransactions )
      )
 
 ------------------------------------------------------------------------
