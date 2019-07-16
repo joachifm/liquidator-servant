@@ -99,6 +99,24 @@ deleteTransaction ctx txid companyId_ = do
     then return NoContent
     else throwIO err404
 
+insertTransactionArray :: Handle -> [Transaction] -> IO [Transaction]
+insertTransactionArray ctx txs = mapM (addTransaction ctx) txs
+
+getAllTransaction :: Handle -> Int64 -> IO [Transaction]
+getAllTransaction _ _ = return []
+
+getTransactionsByDate :: Handle -> Int64 -> Text -> IO [Transaction]
+getTransactionsByDate _ _ _ = return []
+
+getTransactionsByDateRange :: Handle -> Int64 -> Text -> Text -> IO [Transaction]
+getTransactionsByDateRange _ _ _ _ = return []
+
+getAllIncomeTransactions :: Handle -> Int64 -> IO [Transaction]
+getAllIncomeTransactions _ _ = return []
+
+getAllExpenseTransactions :: Handle -> Int64 -> IO [Transaction]
+getAllExpenseTransactions _ _ = return []
+
 ------------------------------------------------------------------------
 -- Balance
 ------------------------------------------------------------------------
@@ -146,6 +164,12 @@ server' ctx = return swaggerDoc
          :<|> addTransaction ctx
          :<|> updateTransaction ctx
          :<|> deleteTransaction ctx
+         :<|> insertTransactionArray ctx
+         :<|> getAllTransaction ctx
+         :<|> getTransactionsByDate ctx
+         :<|> getTransactionsByDateRange ctx
+         :<|> getAllIncomeTransactions ctx
+         :<|> getAllExpenseTransactions ctx
        )
   :<|> (      getBalanceByDate ctx
        )
