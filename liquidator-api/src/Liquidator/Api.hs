@@ -23,6 +23,19 @@ import Servant.Swagger
 import Liquidator.Schema
 
 ------------------------------------------------------------------------
+-- Company
+------------------------------------------------------------------------
+
+type GetCompanyById
+  =  QueryParam' '[Required, Strict] "company_id" Int64
+  :> Get '[JSON] Company
+
+type CompanyApi
+  =  "company"
+  :> (    GetCompanyById
+     )
+
+------------------------------------------------------------------------
 -- Balance
 ------------------------------------------------------------------------
 
@@ -70,7 +83,13 @@ type TransactionApi
 -- Liquidator
 ------------------------------------------------------------------------
 
-type LiquidatorApi = "api" :> "v1" :> (TransactionApi :<|> BalanceApi)
+type LiquidatorApi
+  = "api"
+  :> "v1"
+  :> (     TransactionApi
+      :<|> BalanceApi
+      :<|> CompanyApi
+     )
 
 liquidatorApi :: Proxy LiquidatorApi
 liquidatorApi = Proxy
