@@ -44,16 +44,32 @@ import qualified Test.QuickCheck.Arbitrary.Generic as QC
 
 import qualified Data.Aeson as Aeson
 import Data.Aeson (FromJSON(..), ToJSON(..))
-import Data.Swagger
+import Data.Swagger (ToSchema(..), ToParamSchema(..))
+import qualified Data.Swagger as Swagger
 
 import Servant.Swagger
+
+------------------------------------------------------------------------
+-- Internal utilities
+------------------------------------------------------------------------
 
 lowerFirst :: String -> String
 lowerFirst [] = []
 lowerFirst (x:xs) = Char.toLower x : xs
 
+-- Note: not a general-purpose util; does not ensure that the input contains
+-- the given prefix ...
 dropLabelPrefix :: String -> String -> String
 dropLabelPrefix labelPrefix = lowerFirst . drop (length labelPrefix)
+
+camelCaseToSnake :: String -> String
+camelCaseToSnake [] = []
+camelCaseToSnake (x:xs)
+  | Char.isUpper x = '_': Char.toLower x : camelCaseToSnake xs
+  | otherwise      = x : camelCaseToSnake xs
+
+fieldLabelModifier :: String -> String -> String
+fieldLabelModifier prefix = camelCaseToSnake . lowerFirst . dropLabelPrefix prefix
 
 ------------------------------------------------------------------------
 -- Orphan Arbitrary instances
@@ -97,7 +113,7 @@ instance QC.Arbitrary Pagination where
 -- TODO(joachifm) make this generic somehow (?)
 paginationJsonOptions :: Aeson.Options
 paginationJsonOptions = Aeson.defaultOptions
-  { Aeson.fieldLabelModifier = dropLabelPrefix "pagination"
+  { Aeson.fieldLabelModifier = fieldLabelModifier "pagination"
   }
 
 instance FromJSON Pagination where
@@ -108,7 +124,7 @@ instance ToJSON Pagination where
   toJSON = Aeson.genericToJSON paginationJsonOptions
 
 instance ToSchema Pagination where
-  declareNamedSchema = genericDeclareNamedSchema (fromAesonOptions paginationJsonOptions)
+  declareNamedSchema = Swagger.genericDeclareNamedSchema (Swagger.fromAesonOptions paginationJsonOptions)
 
 ------------------------------------------------------------------------
 -- User
@@ -129,7 +145,7 @@ instance QC.Arbitrary User where
 
 userJsonOptions :: Aeson.Options
 userJsonOptions = Aeson.defaultOptions
-  { Aeson.fieldLabelModifier = dropLabelPrefix "user"
+  { Aeson.fieldLabelModifier = fieldLabelModifier "user"
   }
 
 instance FromJSON User where
@@ -140,7 +156,7 @@ instance ToJSON User where
   toJSON = Aeson.genericToJSON userJsonOptions
 
 instance ToSchema User where
-  declareNamedSchema = genericDeclareNamedSchema (fromAesonOptions userJsonOptions)
+  declareNamedSchema = Swagger.genericDeclareNamedSchema (Swagger.fromAesonOptions userJsonOptions)
 
 ------------------------------------------------------------------------
 -- UserCreate
@@ -160,7 +176,7 @@ instance QC.Arbitrary UserCreate where
 
 userCreateJsonOptions :: Aeson.Options
 userCreateJsonOptions = Aeson.defaultOptions
-  { Aeson.fieldLabelModifier = dropLabelPrefix "userCreate"
+  { Aeson.fieldLabelModifier = fieldLabelModifier "userCreate"
   }
 
 instance FromJSON UserCreate where
@@ -187,7 +203,7 @@ instance QC.Arbitrary Company where
 
 companyJsonOptions :: Aeson.Options
 companyJsonOptions = Aeson.defaultOptions
-  { Aeson.fieldLabelModifier = dropLabelPrefix "company"
+  { Aeson.fieldLabelModifier = fieldLabelModifier "company"
   }
 
 instance ToSchema Company
@@ -218,11 +234,11 @@ instance QC.Arbitrary TransactionTemplate where
 
 transactionTemplateJsonOptions :: Aeson.Options
 transactionTemplateJsonOptions = Aeson.defaultOptions
-  { Aeson.fieldLabelModifier = dropLabelPrefix "transactionTemplate"
+  { Aeson.fieldLabelModifier = fieldLabelModifier "transactionTemplate"
   }
 
 instance ToSchema TransactionTemplate where
-  declareNamedSchema = genericDeclareNamedSchema (fromAesonOptions transactionTemplateJsonOptions)
+  declareNamedSchema = Swagger.genericDeclareNamedSchema (Swagger.fromAesonOptions transactionTemplateJsonOptions)
 
 instance FromJSON TransactionTemplate where
   parseJSON = Aeson.genericParseJSON transactionTemplateJsonOptions
@@ -253,11 +269,11 @@ instance QC.Arbitrary RecurringTransaction where
 
 recurringTransactionJsonOptions :: Aeson.Options
 recurringTransactionJsonOptions = Aeson.defaultOptions
-  { Aeson.fieldLabelModifier = dropLabelPrefix "recurringTransaction"
+  { Aeson.fieldLabelModifier = fieldLabelModifier "recurringTransaction"
   }
 
 instance ToSchema RecurringTransaction where
-  declareNamedSchema = genericDeclareNamedSchema (fromAesonOptions recurringTransactionJsonOptions)
+  declareNamedSchema = Swagger.genericDeclareNamedSchema (Swagger.fromAesonOptions recurringTransactionJsonOptions)
 
 instance FromJSON RecurringTransaction where
   parseJSON = Aeson.genericParseJSON recurringTransactionJsonOptions
@@ -305,7 +321,7 @@ deriving instance Show Transaction
 
 transactionJsonOptions :: Aeson.Options
 transactionJsonOptions = Aeson.defaultOptions
-  { Aeson.fieldLabelModifier = dropLabelPrefix "transaction"
+  { Aeson.fieldLabelModifier = fieldLabelModifier "transaction"
   }
 
 instance FromJSON Transaction where
@@ -316,7 +332,7 @@ instance ToJSON Transaction where
   toEncoding = Aeson.genericToEncoding transactionJsonOptions
 
 instance ToSchema Transaction where
-  declareNamedSchema = genericDeclareNamedSchema (fromAesonOptions transactionJsonOptions)
+  declareNamedSchema = Swagger.genericDeclareNamedSchema (Swagger.fromAesonOptions transactionJsonOptions)
 
 instance Semigroup Transaction where
   _ <> r = r
@@ -346,7 +362,7 @@ instance QC.Arbitrary Month where
 
 monthJsonOptions :: Aeson.Options
 monthJsonOptions = Aeson.defaultOptions
-  { Aeson.fieldLabelModifier = dropLabelPrefix "month"
+  { Aeson.fieldLabelModifier = fieldLabelModifier "month"
   }
 
 instance FromJSON Month where
@@ -357,7 +373,7 @@ instance ToJSON Month where
   toEncoding = Aeson.genericToEncoding monthJsonOptions
 
 instance ToSchema Month where
-  declareNamedSchema = genericDeclareNamedSchema (fromAesonOptions monthJsonOptions)
+  declareNamedSchema = Swagger.genericDeclareNamedSchema (Swagger.fromAesonOptions monthJsonOptions)
 
 ------------------------------------------------------------------------
 -- Balance
@@ -376,7 +392,7 @@ instance QC.Arbitrary Balance where
 
 balanceJsonOptions :: Aeson.Options
 balanceJsonOptions = Aeson.defaultOptions
-  { Aeson.fieldLabelModifier = dropLabelPrefix "balance"
+  { Aeson.fieldLabelModifier = fieldLabelModifier "balance"
   }
 
 instance FromJSON Balance where
@@ -387,7 +403,7 @@ instance ToJSON Balance where
   toEncoding = Aeson.genericToEncoding balanceJsonOptions
 
 instance ToSchema Balance where
-  declareNamedSchema = genericDeclareNamedSchema (fromAesonOptions balanceJsonOptions)
+  declareNamedSchema = Swagger.genericDeclareNamedSchema (Swagger.fromAesonOptions balanceJsonOptions)
 
 ------------------------------------------------------------------------
 -- Bank Balance
@@ -406,7 +422,7 @@ instance QC.Arbitrary BankBalance where
 
 bankBalanceJsonOptions :: Aeson.Options
 bankBalanceJsonOptions = Aeson.defaultOptions
-  { Aeson.fieldLabelModifier = dropLabelPrefix "bankBalance"
+  { Aeson.fieldLabelModifier = fieldLabelModifier "bankBalance"
   }
 
 instance FromJSON BankBalance where
@@ -417,4 +433,4 @@ instance ToJSON BankBalance where
   toEncoding = Aeson.genericToEncoding bankBalanceJsonOptions
 
 instance ToSchema BankBalance where
-  declareNamedSchema = genericDeclareNamedSchema (fromAesonOptions bankBalanceJsonOptions)
+  declareNamedSchema = Swagger.genericDeclareNamedSchema (Swagger.fromAesonOptions bankBalanceJsonOptions)
