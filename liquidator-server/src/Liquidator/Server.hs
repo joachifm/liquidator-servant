@@ -55,6 +55,63 @@ getCompanyById ctx companyId_ = do
     }
 
 ------------------------------------------------------------------------
+-- Recurring transaction
+------------------------------------------------------------------------
+
+getRecurringTransaction
+  :: Handle
+  -> Int64
+  -> Int64
+  -> IO RecurringTransaction
+getRecurringTransaction _ _ _ = throwIO err404
+
+addRecurringTransaction
+  :: Handle
+  -> RecurringTransaction
+  -> IO RecurringTransaction
+addRecurringTransaction _ _ = throwIO err404
+
+updateRecurringTransaction
+  :: Handle
+  -> RecurringTransaction
+  -> IO RecurringTransaction
+updateRecurringTransaction _ _ = throwIO err404
+
+deleteRecurringTransaction
+  :: Handle
+  -> Int64
+  -> Int64
+  -> IO NoContent
+deleteRecurringTransaction _ _ _ = throwIO err404
+
+getAllRecurringTransactions
+  :: Handle
+  -> Int64
+  -> IO [RecurringTransaction]
+getAllRecurringTransactions _ _ = throwIO err404
+
+getActiveRecurringTransactions
+  :: Handle
+  -> Int64
+  -> IO [RecurringTransaction]
+getActiveRecurringTransactions _ _ = throwIO err404
+
+getRecurringTransactionsByDate
+  :: Handle
+  -> Int64
+  -> Text
+  -> IO [RecurringTransaction]
+getRecurringTransactionsByDate _ _ _ = throwIO err404
+
+getRecurringTransactionsByDateRange
+  :: Handle
+  -> Int64
+  -> Text
+  -> Text
+  -> IO [RecurringTransaction]
+getRecurringTransactionsByDateRange _ _ _ _ = throwIO err404
+
+------------------------------------------------------------------------
 -- Transaction
 ------------------------------------------------------------------------
 
@@ -174,6 +231,15 @@ server' ctx = return swaggerDoc
   :<|> (      getBalanceByDate ctx
        )
   :<|> (      getCompanyById ctx
+       )
+  :<|> (      getRecurringTransaction ctx
+         :<|> addRecurringTransaction ctx
+         :<|> updateRecurringTransaction ctx
+         :<|> deleteRecurringTransaction ctx
+         :<|> getAllRecurringTransactions ctx
+         :<|> getActiveRecurringTransactions ctx
+         :<|> getRecurringTransactionsByDate ctx
+         :<|> getRecurringTransactionsByDateRange ctx
        )
 
 ------------------------------------------------------------------------
