@@ -6,6 +6,7 @@
 module Liquidator.Schema
   ( -- * Re-exports
     Int64
+  , Int32
   , Text
 
     -- * Schema types
@@ -24,9 +25,12 @@ module Liquidator.Schema
   , TransactionType(..)
   , Transaction(..)
   , TransactionTemplate(..)
+
+  , Month(..)
+  , RecurringTransaction(..)
   ) where
 
-import Data.Int (Int64)
+import Data.Int (Int32, Int64)
 import Data.Text (Text)
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
@@ -228,6 +232,41 @@ instance ToJSON TransactionTemplate where
   toEncoding = Aeson.genericToEncoding transactionTemplateJsonOptions
 
 ------------------------------------------------------------------------
+-- Recurring transaction
+------------------------------------------------------------------------
+
+data RecurringTransaction = RecurringTransaction
+  { recurringTransactionId :: Int64
+  , recurringTransactionCompanyId :: Int64
+  , recurringTransactionDayDelta :: Int64
+  , recurringTransactionMonthDelta :: Int64
+  , recurringTransactionStartDate :: Text
+  , recurringTransactionEndDate :: Text
+  , recurringTransactionTransactions :: [Int64]
+  , recurringTransactionTemplate :: TransactionTemplate
+  }
+  deriving (Generic, Typeable)
+
+instance QC.Arbitrary RecurringTransaction where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
+
+recurringTransactionJsonOptions :: Aeson.Options
+recurringTransactionJsonOptions = Aeson.defaultOptions
+  { Aeson.fieldLabelModifier = dropLabelPrefix "recurringTransaction"
+  }
+
+instance ToSchema RecurringTransaction where
+  declareNamedSchema = genericDeclareNamedSchema (fromAesonOptions recurringTransactionJsonOptions)
+
+instance FromJSON RecurringTransaction where
+  parseJSON = Aeson.genericParseJSON recurringTransactionJsonOptions
+
+instance ToJSON RecurringTransaction where
+  toJSON = Aeson.genericToJSON recurringTransactionJsonOptions
+  toEncoding = Aeson.genericToEncoding recurringTransactionJsonOptions
+
+------------------------------------------------------------------------
 -- Transaction
 ------------------------------------------------------------------------
 
@@ -283,6 +322,44 @@ instance Semigroup Transaction where
   _ <> r = r
 
 ------------------------------------------------------------------------
+-- Month
+------------------------------------------------------------------------
+
+data Month = Month
+  { monthYear :: Int32
+  , monthMonth :: Int32
+  , monthTransactions :: [Transaction]
+  , monthRecurring :: [(RecurringTransaction, [Text])]
+  , monthBalance :: [Balance]
+  , monthBankBalances :: [BankBalance]
+  , monthStartBalance :: Int64
+  , monthEndBalance :: Int64
+  , monthLowestBalance :: Int64
+  , monthNext :: Text
+  , monthPrevious :: Text
+  }
+  deriving (Generic, Typeable)
+
+instance QC.Arbitrary Month where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
+
+monthJsonOptions :: Aeson.Options
+monthJsonOptions = Aeson.defaultOptions
+  { Aeson.fieldLabelModifier = dropLabelPrefix "month"
+  }
+
+instance FromJSON Month where
+  parseJSON = Aeson.genericParseJSON monthJsonOptions
+
+instance ToJSON Month where
+  toJSON = Aeson.genericToJSON monthJsonOptions
+  toEncoding = Aeson.genericToEncoding monthJsonOptions
+
+instance ToSchema Month where
+  declareNamedSchema = genericDeclareNamedSchema (fromAesonOptions monthJsonOptions)
+
+------------------------------------------------------------------------
 -- Balance
 ------------------------------------------------------------------------
 
@@ -311,3 +388,33 @@ instance ToJSON Balance where
 
 instance ToSchema Balance where
   declareNamedSchema = genericDeclareNamedSchema (fromAesonOptions balanceJsonOptions)
+
+------------------------------------------------------------------------
+-- Bank Balance
+------------------------------------------------------------------------
+
+data BankBalance = BankBalance
+  { bankBalanceCompanyId :: Int64
+  , bankBalanceDate :: Text
+  , bankBalanceMoney :: Int64
+  }
+  deriving (Generic, Typeable)
+
+instance QC.Arbitrary BankBalance where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
+
+bankBalanceJsonOptions :: Aeson.Options
+bankBalanceJsonOptions = Aeson.defaultOptions
+  { Aeson.fieldLabelModifier = dropLabelPrefix "bankBalance"
+  }
+
+instance FromJSON BankBalance where
+  parseJSON = Aeson.genericParseJSON bankBalanceJsonOptions
+
+instance ToJSON BankBalance where
+  toJSON = Aeson.genericToJSON bankBalanceJsonOptions
+  toEncoding = Aeson.genericToEncoding bankBalanceJsonOptions
+
+instance ToSchema BankBalance where
+  declareNamedSchema = genericDeclareNamedSchema (fromAesonOptions bankBalanceJsonOptions)
