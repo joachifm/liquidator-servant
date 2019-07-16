@@ -139,7 +139,7 @@ liquidatorApi = Proxy
 type SwaggerApi = "swagger.json" :> Get '[JSON] Swagger
 
 apiVersion :: Text
-apiVersion = "1.0"
+apiVersion = "1.0.0"
 
 swaggerDoc :: Swagger
 swaggerDoc = toSwagger liquidatorApi
