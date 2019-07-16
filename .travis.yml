@@ -26,7 +26,7 @@ before_script:
 install:
   - ./cabal --version
   - ./cabal new-update
-  - ./cabal new-install --disable-optimization --enable-deterministic --lib --dependencies-only --overwrite-policy=always all
+  - ./cabal new-install --disable-optimization --enable-deterministic --dependencies-only
   - ./cabal new-build   --disable-optimization --enable-deterministic --enable-tests all
 
 script:
