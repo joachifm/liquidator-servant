@@ -331,7 +331,7 @@ data Month = Month
   , monthTransactions :: [Transaction]
   , monthRecurring :: [(RecurringTransaction, [Text])]
   , monthBalance :: [Balance]
-  , monthBankBalances :: [Balance]
+  , monthBankBalances :: [BankBalance]
   , monthStartBalance :: Int64
   , monthEndBalance :: Int64
   , monthLowestBalance :: Int64
@@ -388,3 +388,33 @@ instance ToJSON Balance where
 
 instance ToSchema Balance where
   declareNamedSchema = genericDeclareNamedSchema (fromAesonOptions balanceJsonOptions)
+
+------------------------------------------------------------------------
+-- Bank Balance
+------------------------------------------------------------------------
+
+data BankBalance = BankBalance
+  { bankBalanceCompanyId :: Int64
+  , bankBalanceDate :: Text
+  , bankBalanceMoney :: Int64
+  }
+  deriving (Generic, Typeable)
+
+instance QC.Arbitrary BankBalance where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
+
+bankBalanceJsonOptions :: Aeson.Options
+bankBalanceJsonOptions = Aeson.defaultOptions
+  { Aeson.fieldLabelModifier = dropLabelPrefix "bankBalance"
+  }
+
+instance FromJSON BankBalance where
+  parseJSON = Aeson.genericParseJSON bankBalanceJsonOptions
+
+instance ToJSON BankBalance where
+  toJSON = Aeson.genericToJSON bankBalanceJsonOptions
+  toEncoding = Aeson.genericToEncoding bankBalanceJsonOptions
+
+instance ToSchema BankBalance where
+  declareNamedSchema = genericDeclareNamedSchema (fromAesonOptions bankBalanceJsonOptions)
