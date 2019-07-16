@@ -146,7 +146,7 @@ swaggerDoc = toSwagger liquidatorApi
   & info.title       .~ "liquidator"
   & info.version     .~ apiVersion
   & info.description ?~ "liquidator API"
-  & info.license     ?~ ("MIT" & url ?~ URL "https://opensource.org/licenses/MIT")
+  & info.license     ?~ ("AGPL-3.0" & url ?~ URL "https://opensource.org/licenses/AGPL-3.0")
 
 ------------------------------------------------------------------------
 -- Toplevel
