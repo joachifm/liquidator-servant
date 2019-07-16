@@ -20,7 +20,7 @@ cache:
     - $HOME/.cabal/store
     - $HOME/.cabal/bin
 
-before_script:
+before_install:
   - export LC_ALL=C
   - export PATH=$HOME/.cabal/bin:$HOME/.nix-profile/bin:$PATH
 
