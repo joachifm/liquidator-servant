@@ -27,6 +27,13 @@ getAllRecurringTransactions :: Int64 -> ClientM [RecurringTransaction]
 getActiveRecurringTransactions :: Int64 -> ClientM [RecurringTransaction]
 getRecurringTransactionsByDate :: Int64 -> Text -> ClientM [RecurringTransaction]
 getRecurringTransactionsByDateRange :: Int64 -> Text -> Text -> ClientM [RecurringTransaction]
+getUserById :: Int64 -> ClientM User
+createUser :: UserCreate -> ClientM User
+updateUser :: User -> ClientM User
+deleteUser :: Text -> ClientM NoContent
+getUserByEmail :: Text -> ClientM User
+loginUser :: LoginData -> ClientM LoginSuccess
+refreshToken :: Refresh -> ClientM RefreshResult
 _ :<|> (      getTransactionById
          :<|> addTransaction
          :<|> updateTransaction
@@ -50,5 +57,13 @@ _ :<|> (      getTransactionById
          :<|> getActiveRecurringTransactions
          :<|> getRecurringTransactionsByDate
          :<|> getRecurringTransactionsByDateRange
+       )
+  :<|> (      getUserById
+         :<|> createUser
+         :<|> updateUser
+         :<|> deleteUser
+         :<|> getUserByEmail
+         :<|> loginUser
+         :<|> refreshToken
        )
   = client api

@@ -21,6 +21,12 @@ module Liquidator.Schema
   , Url
   , User(..)
   , UserCreate(..)
+
+  -- Ad-hoc, not in upstream spec
+  , LoginData(..)
+  , LoginSuccess(..)
+  , Refresh(..)
+  , RefreshResult(..)
   ) where
 
 import Data.Int (Int32, Int64)
@@ -111,6 +117,66 @@ instance ToSchema User where
   declareNamedSchema = Swagger.genericDeclareNamedSchema schemaOptions
 
 ------------------------------------------------------------------------
+-- User login
+------------------------------------------------------------------------
+
+data LoginData = LoginData
+  { loginData_email :: Text
+  , loginData_password :: Text
+  }
+  deriving (Eq, Show, Generic, Typeable)
+
+data LoginSuccess = LoginSuccess
+  { loginSuccess_refresh :: Text
+  , loginSuccess_access :: Text
+  , loginSuccess_user :: User
+  }
+  deriving (Eq, Show, Generic, Typeable)
+
+data Refresh = Refresh
+  { refresh_refresh :: Text
+  }
+  deriving (Eq, Show, Generic, Typeable)
+
+data RefreshResult = RefreshResult
+  { refresh_access :: Text
+  }
+  deriving (Eq, Show, Generic, Typeable)
+
+instance QC.Arbitrary LoginData where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
+
+instance QC.Arbitrary LoginSuccess where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
+
+instance QC.Arbitrary Refresh where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
+
+instance QC.Arbitrary RefreshResult where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
+
+$(deriveJSON ''LoginData)
+$(deriveJSON ''LoginSuccess)
+$(deriveJSON ''Refresh)
+$(deriveJSON ''RefreshResult)
+
+instance ToSchema LoginData where
+  declareNamedSchema = Swagger.genericDeclareNamedSchema schemaOptions
+
+instance ToSchema LoginSuccess where
+  declareNamedSchema = Swagger.genericDeclareNamedSchema schemaOptions
+
+instance ToSchema Refresh where
+  declareNamedSchema = Swagger.genericDeclareNamedSchema schemaOptions
+
+instance ToSchema RefreshResult where
+  declareNamedSchema = Swagger.genericDeclareNamedSchema schemaOptions
+
+------------------------------------------------------------------------
 -- UserCreate
 ------------------------------------------------------------------------
 
@@ -127,6 +193,9 @@ instance QC.Arbitrary UserCreate where
   shrink = QC.genericShrink
 
 $(deriveJSON ''UserCreate)
+
+instance ToSchema UserCreate where
+  declareNamedSchema = Swagger.genericDeclareNamedSchema schemaOptions
 
 ------------------------------------------------------------------------
 -- Company
