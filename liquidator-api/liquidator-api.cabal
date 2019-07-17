@@ -11,6 +11,7 @@ cabal-version:       >=1.10
 library
   exposed-modules:     Liquidator.Api
                      , Liquidator.Schema
+  other-modules:       Liquidator.SchemaTH
   build-depends:       base >=4.12 && <4.13
                      , bytestring >=0.10.8 && <1
                      , text >=1.2.3.1 && <2
