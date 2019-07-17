@@ -55,7 +55,7 @@ instance QC.Arbitrary Text where
 ------------------------------------------------------------------------
 
 data Role = Role_Reporter | Role_User | Role_Owner
-  deriving (Eq, Generic, Typeable)
+  deriving (Eq, Generic, Typeable, Show)
 
 instance QC.Arbitrary Role where
   arbitrary = QC.genericArbitrary
@@ -77,7 +77,7 @@ data Pagination = Pagination
   , pagination_next :: Url
   , pagination_previous :: Url
   }
-  deriving (Generic, Typeable)
+  deriving (Generic, Typeable, Eq, Show)
 
 instance QC.Arbitrary Pagination where
   arbitrary = QC.genericArbitrary
@@ -99,7 +99,7 @@ data User = User
   , user_email :: Text
   , user_companies :: [Int64]
   }
-  deriving (Generic, Typeable)
+  deriving (Generic, Typeable, Eq, Show)
 
 instance QC.Arbitrary User where
   arbitrary = QC.genericArbitrary
@@ -120,7 +120,7 @@ data UserCreate = UserCreate
   , userCreate_email :: Text
   , userCreate_password :: Text
   }
-  deriving (Generic, Typeable)
+  deriving (Generic, Typeable, Eq, Show)
 
 instance QC.Arbitrary UserCreate where
   arbitrary = QC.genericArbitrary
@@ -137,7 +137,7 @@ data Company = Company
   , company_name :: Text
   , company_org_nr :: Text
   }
-  deriving (Generic, Typeable)
+  deriving (Generic, Typeable, Eq, Show)
 
 instance QC.Arbitrary Company where
   arbitrary = QC.genericArbitrary
@@ -153,9 +153,9 @@ instance ToSchema Company where
 ------------------------------------------------------------------------
 
 data TransactionType
-  = Income
-  | Expense
-  deriving (Generic, Typeable)
+  = TransactionType_Income
+  | TransactionType_Expense
+  deriving (Generic, Typeable, Eq, Show)
 
 instance QC.Arbitrary TransactionType where
   arbitrary = QC.genericArbitrary
@@ -183,7 +183,7 @@ data Transaction = Transaction
   , transaction_description :: Text
   , transaction_notes :: Text
   }
-  deriving (Generic, Typeable)
+  deriving (Generic, Typeable, Eq, Show)
 
 instance QC.Arbitrary Transaction where
   arbitrary = QC.genericArbitrary
@@ -208,7 +208,7 @@ data TransactionTemplate = TransactionTemplate
   , transactionTemplate_description :: Text
   , transactionTemplate_note :: Text
   }
-  deriving (Generic, Typeable)
+  deriving (Generic, Typeable, Eq, Show)
 
 instance QC.Arbitrary TransactionTemplate where
   arbitrary = QC.genericArbitrary
@@ -233,7 +233,7 @@ data RecurringTransaction = RecurringTransaction
   , recurringTransaction_transactions :: [Int64]
   , recurringTransaction_template :: TransactionTemplate
   }
-  deriving (Generic, Typeable)
+  deriving (Generic, Typeable, Eq, Show)
 
 instance QC.Arbitrary RecurringTransaction where
   arbitrary = QC.genericArbitrary
@@ -253,7 +253,7 @@ data Balance = Balance
   , balance_date :: Text
   , balance_money :: Int64
   }
-  deriving (Generic, Typeable)
+  deriving (Generic, Typeable, Eq, Show)
 
 instance QC.Arbitrary Balance where
   arbitrary = QC.genericArbitrary
@@ -273,7 +273,7 @@ data BankBalance = BankBalance
   , bankBalance_date :: Text
   , bankBalance_money :: Int64
   }
-  deriving (Generic, Typeable)
+  deriving (Generic, Typeable, Eq, Show)
 
 instance QC.Arbitrary BankBalance where
   arbitrary = QC.genericArbitrary
@@ -301,7 +301,7 @@ data Month = Month
   , month_next :: Text
   , month_previous :: Text
   }
-  deriving (Generic, Typeable)
+  deriving (Generic, Typeable, Eq, Show)
 
 instance QC.Arbitrary Month where
   arbitrary = QC.genericArbitrary
