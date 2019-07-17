@@ -6,6 +6,7 @@ let
     cabal-install
     ghcid
     hlint
+    hspec-discover
   ]);
 in
 

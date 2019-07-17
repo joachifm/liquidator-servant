@@ -32,6 +32,7 @@ install:
 
 script:
   - ./cabal new-run exe:liquidator-swagger
+  - ./cabal new-test all
 
 before_cache:
   # Cabal

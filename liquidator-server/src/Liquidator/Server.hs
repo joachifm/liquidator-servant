@@ -30,13 +30,13 @@ data Handle = Handle
 
 dummyDb :: Map Int64 Transaction
 dummyDb = Map.fromList . zipWith assign [ 1 .. ] $
-  [ Transaction 0 1 Nothing "1970-01-01" 1000 Income "" ""
-  , Transaction 0 1 Nothing "1970-01-02" 1000 Income "" ""
-  , Transaction 0 1 Nothing "1970-01-03" 1000 Income "" ""
-  , Transaction 0 1 Nothing "1970-01-04" 3000 Expense "" ""
+  [ Transaction 0 1 Nothing "1970-01-01" 1000 TransactionType_Income "" ""
+  , Transaction 0 1 Nothing "1970-01-02" 1000 TransactionType_Income "" ""
+  , Transaction 0 1 Nothing "1970-01-03" 1000 TransactionType_Income "" ""
+  , Transaction 0 1 Nothing "1970-01-04" 3000 TransactionType_Expense "" ""
   ]
   where
-    assign txid tx = (txid, tx { transactionId = txid })
+    assign txid tx = (txid, tx { transaction_id = txid })
 
 newHandle :: IO Handle
 newHandle = Handle <$> IORef.newIORef dummyDb <*> IORef.newIORef 1
@@ -49,9 +49,9 @@ getCompanyById :: Handle -> Int64 -> IO Company
 getCompanyById ctx companyId_ = do
   -- TODO(joachifm) return actual data
   return $! Company
-    { companyId = companyId_
-    , companyName = "Acme"
-    , companyOrgNr = "12345"
+    { company_id = companyId_
+    , company_name = "Acme"
+    , company_org_nr = "12345"
     }
 
 ------------------------------------------------------------------------
@@ -118,14 +118,14 @@ getRecurringTransactionsByDateRange _ _ _ _ = throwIO err404
 getTransactionById :: Handle -> Int64 -> Int64 -> IO Transaction
 getTransactionById ctx txid companyId_ = do
   db <- IORef.readIORef (transactionDb ctx)
-  case Map.lookup txid (Map.filter ((== companyId_) . transactionCompanyId) db) of
+  case Map.lookup txid (Map.filter ((== companyId_) . transaction_company_id) db) of
     Nothing  -> throwIO err404
     Just elt -> return elt
 
 addTransaction :: Handle -> Transaction -> IO Transaction
 addTransaction ctx tx = do
   txid <- IORef.atomicModifyIORef' (nextId ctx) (\s -> (s + 1, s))
-  let tx' = tx { transactionId = txid }
+  let tx' = tx { transaction_id = txid }
   -- TODO(joachifm) silently overwrites on duplicate pkey
   IORef.atomicModifyIORef' (transactionDb ctx) $ \s ->
     (Map.insert txid tx s, ())
@@ -135,7 +135,7 @@ updateTransaction :: Handle -> Transaction -> IO Transaction
 updateTransaction ctx tx = do
   mbTx <- IORef.atomicModifyIORef' (transactionDb ctx) $ \s ->
     let
-      txid = transactionId tx
+      txid = transaction_id tx
     in
       case Map.lookup txid s of
         Just tx0 ->
@@ -149,7 +149,7 @@ updateTransaction ctx tx = do
 deleteTransaction :: Handle -> Int64 -> Int64 -> IO NoContent
 deleteTransaction ctx txid companyId_ = do
   deleted <- IORef.atomicModifyIORef' (transactionDb ctx) $ \s ->
-    case Map.lookup txid (Map.filter ((== companyId_) . transactionCompanyId) s) of
+    case Map.lookup txid (Map.filter ((== companyId_) . transaction_company_id) s) of
       Just _  -> (Map.delete txid s, True)
       Nothing -> (s, False)
   if deleted
@@ -189,15 +189,15 @@ balanceMoneyByDate companyId_ date
   where
     transactionMoneyToInt :: Transaction -> Int64
     transactionMoneyToInt tx =
-      (case transactionType tx of
-         Income -> id
-         Expense -> negate)
-      (transactionMoney tx)
+      (case transaction_type tx of
+         TransactionType_Income -> id
+         TransactionType_Expense -> negate)
+      (transaction_money tx)
 
     transactionByDatePredicate :: (Transaction -> Bool)
     transactionByDatePredicate p =
-         ((== companyId_) . transactionCompanyId) p
-      && ((<= date) . transactionDate) p
+         ((== companyId_) . transaction_company_id) p
+      && ((<= date) . transaction_date) p
 
 getBalanceByDate
   :: Handle
