@@ -210,6 +210,52 @@ getBalanceByDate ctx companyId_ date =
           <*> balanceMoneyByDate companyId_ date <$> IORef.readIORef (transactionDb ctx)
 
 ------------------------------------------------------------------------
+-- User
+------------------------------------------------------------------------
+
+getUserById
+  :: Handle
+  -> Int64
+  -> IO User
+getUserById _ _ = throwIO err404
+
+createUser
+  :: Handle
+  -> UserCreate
+  -> IO User
+createUser _ _ = throwIO err404
+
+updateUser
+  :: Handle
+  -> User
+  -> IO User
+updateUser _ _ = throwIO err404
+
+deleteUser
+  :: Handle
+  -> Text
+  -> IO NoContent
+deleteUser _ _ = throwIO err404
+
+getUserByEmail
+  :: Handle
+  -> Text
+  -> IO User
+getUserByEmail _ _ = throwIO err404
+
+loginUser
+  :: Handle
+  -> LoginData
+  -> IO LoginSuccess
+loginUser _ _ = throwIO err404
+
+refreshToken
+  :: Handle
+  -> Refresh
+  -> IO RefreshResult
+refreshToken _ _ = throwIO err404
+
+------------------------------------------------------------------------
 -- Server
 ------------------------------------------------------------------------
 
@@ -240,6 +286,14 @@ server' ctx = return swaggerDoc
          :<|> getActiveRecurringTransactions ctx
          :<|> getRecurringTransactionsByDate ctx
          :<|> getRecurringTransactionsByDateRange ctx
+       )
+  :<|> (      getUserById ctx
+         :<|> createUser ctx
+         :<|> updateUser ctx
+         :<|> deleteUser ctx
+         :<|> getUserByEmail ctx
+         :<|> loginUser ctx
+         :<|> refreshToken ctx
        )
 
 ------------------------------------------------------------------------
