@@ -157,7 +157,7 @@ deleteTransaction ctx txid companyId_ = do
     else throwIO err404
 
 insertTransactionArray :: Handle -> [Transaction] -> IO [Transaction]
-insertTransactionArray ctx txs = mapM (addTransaction ctx) txs
+insertTransactionArray ctx = mapM (addTransaction ctx)
 
 getAllTransaction :: Handle -> Int64 -> IO [Transaction]
 getAllTransaction _ _ = return []
@@ -252,7 +252,7 @@ nt :: IO a -> Handler a
 nt = Handler . ExceptT . (try :: IO a -> IO (Either ServerError a))
 
 server :: Handle -> Server Api
-server ctx = hoistServer api nt (server' ctx)
+server = hoistServer api nt . server'
 
 app :: IO Application
 app = serve api . server <$> newHandle

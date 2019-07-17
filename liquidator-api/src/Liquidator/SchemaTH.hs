@@ -1,5 +1,3 @@
-{-# LANGUAGE TemplateHaskell #-}
-
 module Liquidator.SchemaTH
   ( deriveJSON
   , aesonOptions
