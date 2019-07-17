@@ -23,6 +23,49 @@ import Servant.Swagger
 import Liquidator.Schema
 
 ------------------------------------------------------------------------
+-- User
+------------------------------------------------------------------------
+
+type GetUserById
+  =  QueryParam' '[Required, Strict] "id" Int64
+  :> Get '[JSON] User
+
+type CreateUser
+  =  ReqBody '[JSON] UserCreate
+  :> Post '[JSON] User
+
+type UpdateUser
+  =  ReqBody '[JSON] User
+  :> Put '[JSON] User
+
+type DeleteUser
+  =  ReqBody '[JSON] Text
+  :> Delete '[JSON] NoContent
+
+type GetUserByEmail
+  =  QueryParam' '[Required, Strict] "email" Text
+  :> Get '[JSON] User
+
+type LoginUser
+  =  ReqBody '[JSON] LoginData
+  :> Post '[JSON] LoginSuccess
+
+type RefreshToken
+  =  ReqBody '[JSON] Refresh
+  :> Post '[JSON] RefreshResult
+
+type UserApi
+  =  "user"
+  :> (    GetUserById
+     :<|> CreateUser
+     :<|> UpdateUser
+     :<|> DeleteUser
+     :<|> ( "byEmail" :> GetUserByEmail )
+     :<|> ( "login" :> LoginUser )
+     :<|> ( "refresh" :> RefreshToken )
+     )
+
+------------------------------------------------------------------------
 -- Recurring
 ------------------------------------------------------------------------
 
@@ -185,6 +228,7 @@ type LiquidatorApi
       :<|> BalanceApi
       :<|> CompanyApi
       :<|> RecurringApi
+      :<|> UserApi
      )
 
 liquidatorApi :: Proxy LiquidatorApi
