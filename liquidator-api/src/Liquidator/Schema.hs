@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Liquidator.Schema
   ( -- * Re-exports
@@ -44,7 +45,7 @@ import qualified Data.Aeson.TH as Aeson
 import Data.Aeson (FromJSON(..), ToJSON(..))
 import Data.Swagger (ToSchema(..), ToParamSchema(..))
 import qualified Data.Swagger as Swagger
-
+import Web.HttpApiData
 import Servant.Swagger
 
 import Liquidator.SchemaTH
@@ -71,6 +72,18 @@ $(deriveJSON ''Role)
 
 instance ToSchema Role where
   declareNamedSchema = Swagger.genericDeclareNamedSchema schemaOptions
+
+instance ToParamSchema Role
+
+instance FromHttpApiData Role where
+  parseUrlPiece s = case lookup s tbl of
+    Just v -> Right v
+    Nothing -> Left ("invalid role: " <> s)
+    where
+      tbl = [("User", Role_User)
+            ,("Reporter", Role_Reporter)
+            ,("Owner", Role_Owner)
+            ]
 
 ------------------------------------------------------------------------
 -- Pagination

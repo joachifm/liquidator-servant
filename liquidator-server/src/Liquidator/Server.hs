@@ -54,6 +54,15 @@ getCompanyById ctx companyId_ = do
     , company_org_nr = "12345"
     }
 
+addCompany :: Handle -> Company -> IO Company
+addCompany ctx companyData = do
+  -- TODO(joachifm) return actual data
+  return $! Company
+    { company_id = companyId_
+    , company_name = "Acme"
+    , company_org_nr = "12345"
+    }
+
 ------------------------------------------------------------------------
 -- Recurring transaction
 ------------------------------------------------------------------------
