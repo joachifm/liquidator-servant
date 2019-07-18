@@ -21,7 +21,10 @@ module Liquidator.Schema
   , TransactionType(..)
   , Url
   , User(..)
+  , UserCompanyRelation(..)
   , UserCreate(..)
+  , UserUpdate(..)
+  , UserKeys(..)
 
   -- Ad-hoc, not in upstream spec
   , LoginData(..)
@@ -190,6 +193,26 @@ instance ToSchema RefreshResult where
   declareNamedSchema = Swagger.genericDeclareNamedSchema schemaOptions
 
 ------------------------------------------------------------------------
+-- UserCompanyRelation
+------------------------------------------------------------------------
+
+data UserCompanyRelation = UserCompanyRelation
+  { userCompanyRelation_company_id :: Int64
+  , userCompanyRelation_user_id :: Int64
+  , userCompanyRelation_role :: Role
+  }
+  deriving (Generic, Typeable, Eq, Show)
+
+instance QC.Arbitrary UserCompanyRelation where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
+
+$(deriveJSON ''UserCompanyRelation)
+
+instance ToSchema UserCompanyRelation where
+  declareNamedSchema = Swagger.genericDeclareNamedSchema schemaOptions
+
+------------------------------------------------------------------------
 -- UserCreate
 ------------------------------------------------------------------------
 
@@ -211,6 +234,47 @@ instance ToSchema UserCreate where
   declareNamedSchema = Swagger.genericDeclareNamedSchema schemaOptions
 
 ------------------------------------------------------------------------
+-- UserUpdate
+------------------------------------------------------------------------
+
+data UserUpdate = UserUpdate
+  { userUpdate_first_name :: Text
+  , userUpdate_last_name :: Text
+  , userUpdate_email :: Text
+  , userUpdate_password :: Text
+  }
+  deriving (Generic, Typeable, Eq, Show)
+
+instance QC.Arbitrary UserUpdate where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
+
+$(deriveJSON ''UserUpdate)
+
+instance ToSchema UserUpdate where
+  declareNamedSchema = Swagger.genericDeclareNamedSchema schemaOptions
+
+------------------------------------------------------------------------
+-- UserKeys
+------------------------------------------------------------------------
+
+data UserKeys = UserKeys
+  { userKeys_refresh :: Text
+  , userKeys_access :: Text
+  , userKeys_user :: User
+  }
+  deriving (Generic, Typeable, Eq, Show)
+
+instance QC.Arbitrary UserKeys where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
+
+$(deriveJSON ''UserKeys)
+
+instance ToSchema UserKeys where
+  declareNamedSchema = Swagger.genericDeclareNamedSchema schemaOptions
+
+------------------------------------------------------------------------
 -- Company
 ------------------------------------------------------------------------
 
@@ -218,6 +282,7 @@ data Company = Company
   { company_id :: Int64
   , company_name :: Text
   , company_org_nr :: Text
+  , company_users :: [UserCompanyRelation]
   }
   deriving (Generic, Typeable, Eq, Show)
 
@@ -231,12 +296,51 @@ instance ToSchema Company where
   declareNamedSchema = Swagger.genericDeclareNamedSchema schemaOptions
 
 ------------------------------------------------------------------------
+-- CompanyCreate
+------------------------------------------------------------------------
+
+data CompanyCreate = CompanyCreate
+  { companyCreate_name :: Text
+  , companyCreate_org_nr :: Text
+  }
+  deriving (Generic, Typeable, Eq, Show)
+
+instance QC.Arbitrary CompanyCreate where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
+
+$(deriveJSON ''CompanyCreate)
+
+instance ToSchema CompanyCreate where
+  declareNamedSchema = Swagger.genericDeclareNamedSchema schemaOptions
+
+------------------------------------------------------------------------
+-- CompanyUpdate
+------------------------------------------------------------------------
+
+data CompanyUpdate = CompanyUpdate
+  { companyUpdate_id :: Int64
+  , companyUpdate_name :: Text
+  , companyUpdate_org_nr :: Text
+  }
+  deriving (Generic, Typeable, Eq, Show)
+
+instance QC.Arbitrary CompanyUpdate where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
+
+$(deriveJSON ''CompanyUpdate)
+
+instance ToSchema CompanyUpdate where
+  declareNamedSchema = Swagger.genericDeclareNamedSchema schemaOptions
+
+------------------------------------------------------------------------
 -- Transaction type
 ------------------------------------------------------------------------
 
 data TransactionType
-  = TransactionType_Income
-  | TransactionType_Expense
+  = TransactionType_IN
+  | TransactionType_EX
   deriving (Generic, Typeable, Eq, Show)
 
 instance QC.Arbitrary TransactionType where
@@ -257,13 +361,13 @@ instance ToParamSchema TransactionType
 
 data Transaction = Transaction
   { transaction_id :: Int64
-  , transaction_company_id :: Int64
-  , transaction_recurring_id :: Maybe Int64
-  , transaction_date :: Text
   , transaction_money :: Int64
   , transaction_type :: TransactionType
   , transaction_description :: Text
   , transaction_notes :: Text
+  , transaction_company_id :: Int64
+  , transaction_recurring_id :: Maybe Int64
+  , transaction_date :: Text
   }
   deriving (Generic, Typeable, Eq, Show)
 
@@ -302,18 +406,84 @@ instance ToSchema TransactionTemplate where
   declareNamedSchema = Swagger.genericDeclareNamedSchema schemaOptions
 
 ------------------------------------------------------------------------
+-- Transaction template
+------------------------------------------------------------------------
+
+data TransactionTemplateCreate = TransactionTemplateCreate
+  { transactionTemplateCreate_money :: Int64
+  , transactionTemplateCreate_type :: TransactionType
+  , transactionTemplateCreate_description :: Text
+  , transactionTemplateCreate_note :: Text
+  }
+  deriving (Generic, Typeable, Eq, Show)
+
+instance QC.Arbitrary TransactionTemplateCreate where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
+
+$(deriveJSON ''TransactionTemplateCreate)
+
+instance ToSchema TransactionTemplateCreate where
+  declareNamedSchema = Swagger.genericDeclareNamedSchema schemaOptions
+
+------------------------------------------------------------------------
+-- Transaction base
+------------------------------------------------------------------------
+
+data TransactionBase = TransactionBase
+  { transactionBase_money :: Int64
+  , transactionBase_type :: TransactionType
+  , transactionBase_description :: Text
+  , transactionBase_note :: Text
+  }
+  deriving (Generic, Typeable, Eq, Show)
+
+instance QC.Arbitrary TransactionBase where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
+
+$(deriveJSON ''TransactionBase)
+
+instance ToSchema TransactionBase where
+  declareNamedSchema = Swagger.genericDeclareNamedSchema schemaOptions
+
+------------------------------------------------------------------------
+-- Transaction create
+------------------------------------------------------------------------
+
+data TransactionCreate = TransactionCreate
+  { transactionCreate_money :: Int64
+  , transactionCreate_type :: TransactionType
+  , transactionCreate_description :: Text
+  , transactionCreate_notes :: Text
+  , transactionCreate_company_id :: Int64
+  , transactionCreate_recurring_id :: Maybe Int64
+  , transactionCreate_date :: Text
+  }
+  deriving (Generic, Typeable, Eq, Show)
+
+instance QC.Arbitrary TransactionCreate where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
+
+$(deriveJSON ''TransactionCreate)
+
+instance ToSchema TransactionCreate where
+  declareNamedSchema = Swagger.genericDeclareNamedSchema schemaOptions
+
+------------------------------------------------------------------------
 -- Recurring transaction
 ------------------------------------------------------------------------
 
 data RecurringTransaction = RecurringTransaction
   { recurringTransaction_id :: Int64
+  , recurringTransaction_template :: TransactionTemplate
   , recurringTransaction_company_id :: Int64
   , recurringTransaction_day_delta :: Int64
   , recurringTransaction_month_delta :: Int64
   , recurringTransaction_start_date :: Text
   , recurringTransaction_end_date :: Text
   , recurringTransaction_transactions :: [Int64]
-  , recurringTransaction_template :: TransactionTemplate
   }
   deriving (Generic, Typeable, Eq, Show)
 
@@ -324,6 +494,75 @@ instance QC.Arbitrary RecurringTransaction where
 $(deriveJSON ''RecurringTransaction)
 
 instance ToSchema RecurringTransaction where
+  declareNamedSchema = Swagger.genericDeclareNamedSchema schemaOptions
+
+------------------------------------------------------------------------
+-- Recurring transaction
+------------------------------------------------------------------------
+
+data RecurringTransactionBase = RecurringTransactionBase
+  { recurringTransactionBase_company_id :: Int64
+  , recurringTransactionBase_day_delta :: Int64
+  , recurringTransactionBase_month_delta :: Int64
+  , recurringTransactionBase_start_date :: Text
+  , recurringTransactionBase_end_date :: Text
+  }
+  deriving (Generic, Typeable, Eq, Show)
+
+instance QC.Arbitrary RecurringTransactionBase where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
+
+$(deriveJSON ''RecurringTransactionBase)
+
+instance ToSchema RecurringTransactionBase where
+  declareNamedSchema = Swagger.genericDeclareNamedSchema schemaOptions
+
+------------------------------------------------------------------------
+-- Recurring transaction
+------------------------------------------------------------------------
+
+data RecurringTransactionCreate = RecurringTransactionCreate
+  { recurringTransactionCreate_template :: TransactionTemplateCreate
+  , recurringTransactionCreate_company_id :: Int64
+  , recurringTransactionCreate_day_delta :: Int64
+  , recurringTransactionCreate_month_delta :: Int64
+  , recurringTransactionCreate_start_date :: Text
+  , recurringTransactionCreate_end_date :: Text
+  }
+  deriving (Generic, Typeable, Eq, Show)
+
+instance QC.Arbitrary RecurringTransactionCreate where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
+
+$(deriveJSON ''RecurringTransactionCreate)
+
+instance ToSchema RecurringTransactionCreate where
+  declareNamedSchema = Swagger.genericDeclareNamedSchema schemaOptions
+
+------------------------------------------------------------------------
+-- Recurring transaction
+------------------------------------------------------------------------
+
+data RecurringTransactionUpdate = RecurringTransactionUpdate
+  { recurringTransactionUpdate_id :: Int64
+  , recurringTransactionUpdate_template :: TransactionTemplateCreate
+  , recurringTransactionUpdate_company_id :: Int64
+  , recurringTransactionUpdate_day_delta :: Int64
+  , recurringTransactionUpdate_month_delta :: Int64
+  , recurringTransactionUpdate_start_date :: Text
+  , recurringTransactionUpdate_end_date :: Text
+  }
+  deriving (Generic, Typeable, Eq, Show)
+
+instance QC.Arbitrary RecurringTransactionUpdate where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
+
+$(deriveJSON ''RecurringTransactionUpdate)
+
+instance ToSchema RecurringTransactionUpdate where
   declareNamedSchema = Swagger.genericDeclareNamedSchema schemaOptions
 
 ------------------------------------------------------------------------
@@ -367,14 +606,49 @@ instance ToSchema BankBalance where
   declareNamedSchema = Swagger.genericDeclareNamedSchema schemaOptions
 
 ------------------------------------------------------------------------
+-- Bank Balance
+------------------------------------------------------------------------
+
+data BankBalanceCreate = BankBalanceCreate
+  { bankBalanceCreate_company_id :: Int64
+  , bankBalanceCreate_date :: Text
+  , bankBalanceCreate_money :: Int64
+  }
+  deriving (Generic, Typeable, Eq, Show)
+
+instance QC.Arbitrary BankBalanceCreate where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
+
+$(deriveJSON ''BankBalanceCreate)
+
+instance ToSchema BankBalanceCreate where
+  declareNamedSchema = Swagger.genericDeclareNamedSchema schemaOptions
+
+------------------------------------------------------------------------
 -- Month
 ------------------------------------------------------------------------
+
+data MonthRecurring = MonthRecurring
+  { monthRecurring_recurring :: RecurringTransaction
+  , monthRecurring_dates :: [Text]
+  }
+  deriving (Generic, Typeable, Eq, Show)
+
+instance QC.Arbitrary MonthRecurring where
+  arbitrary = QC.genericArbitrary
+  shrink = QC.genericShrink
+
+$(deriveJSON ''MonthRecurring)
+
+instance ToSchema MonthRecurring where
+  declareNamedSchema = Swagger.genericDeclareNamedSchema schemaOptions
 
 data Month = Month
   { month_year :: Int32
   , month_month :: Int32
   , month_transactions :: [Transaction]
-  , month_recurring :: [(RecurringTransaction, [Text])]
+  , month_recurring :: MonthRecurring
   , month_balance :: [Balance]
   , month_bank_balances :: [BankBalance]
   , month_start_balance :: Int64
