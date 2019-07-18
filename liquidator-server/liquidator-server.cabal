@@ -20,6 +20,16 @@ library
                      , liquidator-api
   hs-source-dirs:      src
   default-language:    Haskell2010
+  ghc-options:         -Wall
+                       -Wcompat
+                       -Wincomplete-record-updates
+                       -Wincomplete-uni-patterns
+                       -Wpartial-fields
+                       -Wmissing-home-modules
+                       -Werror=missing-home-modules
+                       -Widentities
+                       -Wredundant-constraints
+                       -Wall-missed-specialisations
 
 executable liquidator-server
   main-is:             server.hs
@@ -36,5 +46,14 @@ executable liquidator-server
                      , optparse-applicative
                      , warp
   ghc-options:         -rtsopts -threaded -feager-blackholing "-with-rtsopts=-N"
+                       -Wall
+                       -Wcompat
+                       -Wincomplete-record-updates
+                       -Wincomplete-uni-patterns
+                       -Wpartial-fields
+                       -Wmissing-home-modules
+                       -Werror=missing-home-modules
+                       -Widentities
+                       -Wredundant-constraints
   hs-source-dirs:      app
   default-language:    Haskell2010
