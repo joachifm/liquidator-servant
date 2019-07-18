@@ -209,6 +209,55 @@ getBalanceByDate ctx companyId_ date =
           <*> pure date
           <*> balanceMoneyByDate companyId_ date <$> IORef.readIORef (transactionDb ctx)
 
+getBalanceByDateRange
+  :: Handle
+  -> Int64
+  -> Text
+  -> Text
+  -> IO [Balance]
+getBalanceByDateRange _ _ _ _ = throwIO err404
+
+getBankBalance
+  :: Handle
+  -> Int64
+  -> Int64
+  -> IO BankBalance
+getBankBalance _ _ _ = throwIO err404
+
+createBankBalance
+  :: Handle
+  -> BankBalance
+  -> IO BankBalance
+createBankBalance _ _ = throwIO err404
+
+updateBankBalance
+  :: Handle
+  -> BankBalance
+  -> IO BankBalance
+updateBankBalance _ bal = return bal
+
+deleteBankBalance
+  :: Handle
+  -> Int64
+  -> Int64
+  -> IO NoContent
+deleteBankBalance _ _ _ = return NoContent
+
+getBankBalanceByDate
+  :: Handle
+  -> Int64
+  -> Text
+  -> IO [BankBalance]
+getBankBalanceByDate _ _ _ = return []
+
+getBankBalanceByDateRange
+  :: Handle
+  -> Int64
+  -> Text
+  -> Text
+  -> IO [BankBalance]
+getBankBalanceByDateRange _ _ _ _ = return []
+
 ------------------------------------------------------------------------
 -- User
 ------------------------------------------------------------------------
@@ -275,6 +324,14 @@ server' ctx = return swaggerDoc
          :<|> getAllExpenseTransactions ctx
        )
   :<|> (      getBalanceByDate ctx
+         :<|> getBalanceByDateRange ctx
+         :<|> (     getBankBalance ctx
+               :<|> createBankBalance ctx
+               :<|> updateBankBalance ctx
+               :<|> deleteBankBalance ctx
+               :<|> getBankBalanceByDate ctx
+               :<|> getBankBalanceByDateRange ctx
+              )
        )
   :<|> (      getCompanyById ctx
        )
