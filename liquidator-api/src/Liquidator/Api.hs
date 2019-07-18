@@ -141,12 +141,57 @@ type CompanyApi
 
 type GetBalanceByDate
   =  QueryParam' '[Required, Strict] "company_id" Int64
-  :> QueryParam' '[Required, Strict] "date" Text
+  :> QueryParam' '[Required, Strict] "date_param" Text
   :> Get '[JSON] Balance
+
+-- TODO(joachifm) produces pagination
+type GetBalanceByDateRange
+  =  QueryParam' '[Required, Strict] "company_id" Int64
+  :> QueryParam' '[Required, Strict] "start_date" Text
+  :> QueryParam' '[Required, Strict] "end_date" Text
+  :> Get '[JSON] [Balance]
+
+type GetBankBalance
+  =  QueryParam' '[Required, Strict] "company_id" Int64
+  :> QueryParam' '[Required, Strict] "id" Int64
+  :> Get '[JSON] BankBalance
+
+type CreateBankBalance
+  =  ReqBody '[JSON] BankBalance
+  :> Post '[JSON] BankBalance
+
+type UpdateBankBalance
+  =  ReqBody '[JSON] BankBalance
+  :> Put '[JSON] BankBalance
+
+type DeleteBankBalance
+  =  QueryParam' '[Required, Strict] "company_id" Int64
+  :> QueryParam' '[Required, Strict] "id" Int64
+  :> Delete '[JSON] NoContent
+
+type GetBankBalanceByDate
+  =  QueryParam' '[Required, Strict] "company_id" Int64
+  :> QueryParam' '[Required, Strict] "date_param" Text
+  :> Get '[JSON] [BankBalance]
+
+type GetBankBalanceByDateRange
+  =  QueryParam' '[Required, Strict] "company_id" Int64
+  :> QueryParam' '[Required, Strict] "start_date" Text
+  :> QueryParam' '[Required, Strict] "end_date" Text
+  :> Get '[JSON] [BankBalance]
 
 type BalanceApi
   = "balance"
   :> (      GetBalanceByDate
+       :<|> GetBalanceByDateRange
+       :<|> ( "bank" :> (      GetBankBalance
+                          :<|> CreateBankBalance
+                          :<|> UpdateBankBalance
+                          :<|> DeleteBankBalance
+                          :<|> ( "byDate" :> GetBankBalanceByDate )
+                          :<|> ( "byDateRange" :> GetBankBalanceByDateRange )
+                        )
+            )
      )
 
 ------------------------------------------------------------------------
