@@ -30,10 +30,16 @@ data Handle = Handle
 
 dummyDb :: Map Int64 Transaction
 dummyDb = Map.fromList . zipWith assign [ 1 .. ] $
-  [ Transaction 0 1 Nothing "1970-01-01" 1000 TransactionType_Income "" ""
-  , Transaction 0 1 Nothing "1970-01-02" 1000 TransactionType_Income "" ""
-  , Transaction 0 1 Nothing "1970-01-03" 1000 TransactionType_Income "" ""
-  , Transaction 0 1 Nothing "1970-01-04" 3000 TransactionType_Expense "" ""
+  [ Transaction
+    { transaction_id = 0
+    , transaction_company_id = 1
+    , transaction_recurring_id = Nothing
+    , transaction_date = "1970-01-01"
+    , transaction_money = 1000
+    , transaction_type = TransactionType_IN
+    , transaction_description = ""
+    , transaction_notes = ""
+    }
   ]
   where
     assign txid tx = (txid, tx { transaction_id = txid })
@@ -52,6 +58,7 @@ getCompanyById ctx companyId_ = do
     { company_id = companyId_
     , company_name = "Acme"
     , company_org_nr = "12345"
+    , company_users = []
     }
 
 addCompany :: Handle -> Company -> IO Company
@@ -214,8 +221,8 @@ balanceMoneyByDate companyId_ date
     transactionMoneyToInt :: Transaction -> Int64
     transactionMoneyToInt tx =
       (case transaction_type tx of
-         TransactionType_Income -> id
-         TransactionType_Expense -> negate)
+         TransactionType_IN -> id
+         TransactionType_EX -> negate)
       (transaction_money tx)
 
     transactionByDatePredicate :: (Transaction -> Bool)
