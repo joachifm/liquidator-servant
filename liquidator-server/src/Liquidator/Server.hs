@@ -54,6 +54,30 @@ getCompanyById ctx companyId_ = do
     , company_org_nr = "12345"
     }
 
+addCompany :: Handle -> Company -> IO Company
+addCompany ctx companyData = do
+  return companyData
+
+updateCompany :: Handle -> Company -> IO Company
+updateCompany ctx companyData = do
+  return companyData
+
+deleteCompany :: Handle -> Int64 -> IO NoContent
+deleteCompany ctx companyId_ = do
+  return NoContent
+
+addUserToCompany :: Handle -> Int64 -> Int64 -> Maybe Role -> IO NoContent
+addUserToCompany ctx companyId_ userId_ userRole_ = do
+  return NoContent
+
+removeUserFromCompany :: Handle -> Int64 -> Int64 -> IO NoContent
+removeUserFromCompany ctx companyId_ userId_ = do
+  return NoContent
+
+setUserRole :: Handle -> Int64 -> Int64 -> Role -> IO NoContent
+setUserRole ctx companyId_ userId_ userRole_ = do
+  return NoContent
+
 ------------------------------------------------------------------------
 -- Recurring transaction
 ------------------------------------------------------------------------
@@ -334,6 +358,12 @@ server' ctx = return swaggerDoc
               )
        )
   :<|> (      getCompanyById ctx
+         :<|> addCompany ctx
+         :<|> updateCompany ctx
+         :<|> deleteCompany ctx
+         :<|> addUserToCompany ctx
+         :<|> removeUserFromCompany ctx
+         :<|> setUserRole ctx
        )
   :<|> (      getRecurringTransaction ctx
          :<|> addRecurringTransaction ctx

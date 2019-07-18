@@ -130,9 +130,44 @@ type GetCompanyById
   =  QueryParam' '[Required, Strict] "company_id" Int64
   :> Get '[JSON] Company
 
+type AddCompany
+  =  ReqBody '[JSON] Company
+  :> Post '[JSON] Company
+
+type UpdateCompany
+  =  ReqBody '[JSON] Company
+  :> Put '[JSON] Company
+
+type DeleteCompany
+  =  QueryParam' '[Required, Strict] "company_id" Int64
+  :> Delete '[JSON] NoContent
+
+type CompanyAddUser
+  =  QueryParam' '[Required, Strict] "company_id" Int64
+  :> QueryParam' '[Required, Strict] "user_id" Int64
+  :> QueryParam' '[Optional, Strict] "user_role" Role
+  :> Post '[JSON] NoContent
+
+type CompanyRemoveUser
+  =  QueryParam' '[Required, Strict] "company_id" Int64
+  :> QueryParam' '[Required, Strict] "user_id" Int64
+  :> Post '[JSON] NoContent
+
+type CompanySetUserRole
+  =  QueryParam' '[Required, Strict] "company_id" Int64
+  :> QueryParam' '[Required, Strict] "user_id" Int64
+  :> QueryParam' '[Required, Strict] "user_role" Role
+  :> Post '[JSON] NoContent
+
 type CompanyApi
   =  "company"
   :> (    GetCompanyById
+     :<|> AddCompany
+     :<|> UpdateCompany
+     :<|> DeleteCompany
+     :<|> ( "addUser" :> CompanyAddUser )
+     :<|> ( "removeUser" :> CompanyRemoveUser )
+     :<|> ( "setRole" :> CompanySetUserRole )
      )
 
 ------------------------------------------------------------------------
