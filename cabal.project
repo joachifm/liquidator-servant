@@ -1,4 +1,5 @@
 packages:
-  liquidator-api/
-  liquidator-server/
+  --liquidator-api/
+  liquidator-redux/
+  --liquidator-server/
   -- liquidator-client/
