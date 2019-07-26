@@ -50,6 +50,7 @@ import Crypto.JOSE.JWK (JWK)
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
 import qualified Network.Wai.Middleware.Gzip as Gzip
+import qualified Network.Wai.Middleware.AddHeaders as AddHeaders
 import qualified Network.Wai.Middleware.ForceSSL as ForceSSL
 
 ----------------------------------------------------------------------------
@@ -379,10 +380,20 @@ run = Warp.runTLS tlsSettings devSettings . middle =<< app
     middle
       = Gzip.gzip Gzip.def
       . ForceSSL.forceSSL
+      . hsts
+
+    -- See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security
+    --
+    -- Along with rewriting all requests to https:// this is hoped to reduce the risk
+    -- of malicious or acciddental SSL downgrades.
+    hsts = AddHeaders.addHeaders [
+      ("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+      ]
 
     tlsSettings
       = (Warp.tlsSettings "site.crt" "site.key")
-          { Warp.onInsecure = Warp.AllowInsecure }
+          { Warp.onInsecure = Warp.AllowInsecure -- relies on forceSSL
+          }
 
     devSettings
       = Warp.setPort 3000
