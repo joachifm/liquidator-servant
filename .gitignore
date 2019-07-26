@@ -1,0 +1,8 @@
+*.key
+
+.ghci_history
+
+.ghc.environment.*
+cabal.project.local
+dist/
+dist-newstyle/
