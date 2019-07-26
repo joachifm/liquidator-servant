@@ -8,7 +8,7 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:     Liquidator
-  other-modules:       Money
+                     , Money
   build-depends:       base
                      , bytestring
                      , containers
@@ -56,14 +56,20 @@ test-suite spec
   type:                exitcode-stdio-1.0
   main-is:             Spec.hs
   other-modules:       LiquidatorSpec
+                     , MoneySpec
   hs-source-dirs:      test
   build-depends:       base
                      , bytestring
                      , text
 
+                     -- Common
+                     , aeson
+
+                     -- Test
                      , QuickCheck
                      , hspec
 
+                     -- Local
                      , liquidator-redux
   default-language:    Haskell2010
   ghc-options:         -Wall

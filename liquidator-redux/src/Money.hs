@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Money
   ( Money
@@ -50,10 +51,13 @@ ppMoney
 --
 -- >>> parseMoney "0.10"
 -- MkMoney 10
+--
 -- >>> parseMoney "0.1"
 -- MkMoney 10
+--
 -- >>> parseMoney "1.0"
 -- MkMoney 100
+--
 -- >>> parseMoney "1.25"
 -- MkMoney 125
 parseMoney

@@ -9,8 +9,11 @@ let
   hsDevEnv = haskellPackages.ghcWithPackages (hsPkgs: with hsPkgs; [
     cabal-install
     cabal2nix
+
     ghcid
     hlint
+
+    doctest
     hspec-discover
   ]);
 in

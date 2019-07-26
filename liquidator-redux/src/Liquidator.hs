@@ -2,10 +2,10 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE TupleSections #-}
 
 module Liquidator where
 
@@ -40,9 +40,7 @@ import Lucid.Html5
 import Servant.HTML.Lucid
 
 import Servant
-import Servant.Auth
 import Servant.Auth.Server
-
 import Crypto.JOSE.JWK (JWK)
 
 import qualified Network.Wai.Handler.Warp as Warp
@@ -82,8 +80,6 @@ type GenericId = Int64
 
 type UserId = GenericId
 
--- | User session identifier, passed along as a JWT.  The actual information
--- is retrieved as-needed using this index to minimise the JWT payload.
 data User = MkUser { userId :: UserId }
   deriving (Eq, Read, Show, Generic, FromJSON, ToJSON, FromJWT, ToJWT)
 
@@ -143,6 +139,8 @@ data TransactionDiff = TransactionDiff
 emptyTransactionDiff :: TransactionDiff
 emptyTransactionDiff = TransactionDiff Nothing Nothing Nothing
 
+------------------------------------------------------------------------
+
 type TransactionEditor = (Transaction -> Transaction)
 
 setTransactionCleared :: TransactionEditor
@@ -175,6 +173,7 @@ data HandlerEnv = HandlerEnv
   { users :: IORef (Map UserId User)
   , transactions :: IORef (Map TransactionId Transaction)
   , nextId :: IORef GenericId
+  , jwtSettings :: JWTSettings
   }
 
 newHandlerEnv :: IO HandlerEnv
@@ -182,6 +181,10 @@ newHandlerEnv = HandlerEnv
   <$> newIORef mempty
   <*> newIORef mempty
   <*> newIORef 1
+  -- The key is generated anew at server startup, presumably invalidating
+  -- existing tokens.
+  -- Consider readKey/writeKey
+  <*> (defaultJWTSettings <$> generateKey)
 
 getNextId :: HandlerEnv -> IO GenericId
 getNextId = postIncIORef . nextId
@@ -250,6 +253,24 @@ text_ = toHtml
 noContent :: IO a -> IO NoContent
 noContent = (*> pure NoContent)
 
+----------------------------------------------------------------------------
+
+type AuthApi
+  =
+       -- Provide a long-lived "refresh token", used by the client to gain
+       -- "access tokens", which in turn are used to access protected
+       -- resources.
+       "token"  :> Get '[JSON] NoContent
+
+authHandler
+  :: HandlerEnv
+  -> ServerT AuthApi IO
+authHandler h
+  = getRefreshTokenHandler
+  where
+    getRefreshTokenHandler = do
+      return NoContent
+
 ------------------------------------------------------------------------
 
 transactionHandler
@@ -274,7 +295,8 @@ transactionHandler h
     patchTransactionHandler txid txdiff = noContent $
       patchTransaction h txid txdiff
 
-type LiquidatorApi = "api" :> "v1" :> "transaction" :> TransactionApi
+type LiquidatorApi
+  = "transaction" :> TransactionApi
 
 liquidatorHandler
   :: HandlerEnv
@@ -374,12 +396,12 @@ webHandler h
 
 type Api
   =    WebApi
-  :<|> LiquidatorApi
+  :<|> "api" :> "v1" :> ( LiquidatorApi :<|> AuthApi )
 
 handler :: HandlerEnv -> ServerT Api IO
 handler h
   =    webHandler h
-  :<|> liquidatorHandler h
+  :<|> ( liquidatorHandler h :<|> authHandler h )
 
 ----------------------------------------------------------------------------
 
