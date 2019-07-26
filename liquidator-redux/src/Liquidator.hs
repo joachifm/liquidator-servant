@@ -5,23 +5,25 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-
-{-|
-A variant of the Liquidator API.  Similar in intent, but incompatible with
-upstream.
--}
+{-# LANGUAGE TupleSections #-}
 
 module Liquidator where
 
 import GHC.Generics (Generic)
 
-import Data.Word (Word32)
-import Data.Int (Int32, Int64)
+import Control.Lens.Operators
+import Control.Lens.TH
 
+import qualified Control.Exception as E
+import Control.Monad.Except (ExceptT(ExceptT))
+
+import Data.Int (Int32, Int64)
+import Data.Word (Word32)
+
+import Data.ByteString (ByteString)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Read as Text
-import Data.ByteString (ByteString)
 
 import Data.Map (Map)
 import qualified Data.Map.Lazy as Map
@@ -33,72 +35,35 @@ import Data.IORef (IORef, atomicModifyIORef', newIORef, readIORef)
 
 import Data.Time.Clock.System (SystemTime(..), getSystemTime)
 
-import qualified Control.Exception as E
-import Control.Monad.Except (ExceptT(ExceptT))
-
 import Lucid (Html, toHtml)
 import Lucid.Html5
 import Servant.HTML.Lucid
 
-import Control.Lens.Operators
-import Control.Lens.TH
-
 import Servant
+import Servant.Auth
+import Servant.Auth.Server
 
 import Crypto.JOSE.JWK (JWK)
 
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
-import qualified Network.Wai.Middleware.Gzip as Gzip
+
 import qualified Network.Wai.Middleware.AddHeaders as AddHeaders
 import qualified Network.Wai.Middleware.ForceSSL as ForceSSL
+import qualified Network.Wai.Middleware.Gzip as Gzip
 
-----------------------------------------------------------------------------
+import Money
 
--- | Underlying integer type used to represent money amounts.  Fixed-width
--- but should be large enuf ...
-type MoneyAmount = Word32
+------------------------------------------------------------------------
 
--- | A representation of an amount of money in a currency, relative to unit
--- (e.g., 100 for two decimals).
-newtype Money = MkMoney { moneyAmount :: MoneyAmount }
-  -- TODO(joachifm) derive Show only for debug/devel builds (?)
-  deriving (Eq, Read, Show, Generic, FromJSON, ToJSON)
+postIncIORef :: (Integral a) => IORef a -> IO a
+postIncIORef = flip atomicModifyIORef' (\i -> (i + 1, i))
 
--- | A one-way conversion from 'Money' to a real value.
-moneyToReal :: Money -> Float
-moneyToReal = (/ 100) . (fromIntegral :: MoneyAmount -> Float) . moneyAmount
-
--- | Pretty-print a money amount.
---
--- >>> ppMoney (MkMoney 10)
--- "0.10"
--- >>> ppMoney (MkMoney 100)
--- "1.0"
-ppMoney :: Money -> Text
-ppMoney
-  = (\(a, b) -> Text.pack (show a) <> "." <> Text.pack (show b))
-  . (`quotRem` 100) . moneyAmount
-
--- | Read a textual representation of a money amount.
---
--- >>> parseMoney "0.10"
--- MkMoney 10
--- >>> parseMoney "0.1"
--- MkMoney 10
--- >>> parseMoney "1.0"
--- MkMoney 100
--- >>> parseMoney "1.25"
--- MkMoney 125
-parseMoney
-  :: Text
-  -> Either String Money
-parseMoney s = case Text.break (== '.') s of
-  -- TODO(joachifm) a proper parser, please (?)
-  (a, b) -> do
-    (hd, _) <- Text.decimal a
-    (tl, _) <- Text.decimal (Text.drop 1 b)
-    return $! MkMoney (hd * 100 + tl)
+atomicModifyIORef'_
+  :: IORef a
+  -> (a -> a)
+  -> IO ()
+atomicModifyIORef'_ ref act = atomicModifyIORef' ref ((,()) . act)
 
 ----------------------------------------------------------------------------
 
@@ -117,10 +82,10 @@ type GenericId = Int64
 
 type UserId = GenericId
 
-data User = MkUser
-  { userEmail :: Text
-  }
-  deriving (Eq, Read, Show, Generic, FromJSON, ToJSON)
+-- | User session identifier, passed along as a JWT.  The actual information
+-- is retrieved as-needed using this index to minimise the JWT payload.
+data User = MkUser { userId :: UserId }
+  deriving (Eq, Read, Show, Generic, FromJSON, ToJSON, FromJWT, ToJWT)
 
 ----------------------------------------------------------------------------
 
@@ -155,13 +120,15 @@ data Transaction = MkTransaction
 
 emptyTransaction :: Transaction
 emptyTransaction = MkTransaction
-  { transactionMoney = MkMoney 0
+  { transactionMoney = moneyFromAmount 0
   , transactionDate = "1970-01-01"
   , transactionCleared = False
   , transactionClearedTime = Nothing
   , transactionFlagged = False
   , transactionNotes = []
   }
+
+----------------------------------------------------------------------------
 
 -- | A transaction diff represents possible updates to a 'Transaction'.
 --
@@ -217,15 +184,7 @@ newHandlerEnv = HandlerEnv
   <*> newIORef 1
 
 getNextId :: HandlerEnv -> IO GenericId
-getNextId = flip atomicModifyIORef' (\i -> (i + 1, i)) . nextId
-
-------------------------------------------------------------------------
-
-atomicModifyIORef'_
-  :: IORef a
-  -> (a -> a)
-  -> IO ()
-atomicModifyIORef'_ ref act = atomicModifyIORef' ref ((,()) . act)
+getNextId = postIncIORef . nextId
 
 ------------------------------------------------------------------------
 
@@ -286,21 +245,6 @@ type TransactionApi
 text_ :: Text -> Html ()
 text_ = toHtml
 
-simplePage
-  :: Text
-  -> Html ()
-  -> Html ()
-simplePage pageTitle pageBody = doctypehtml_ $ do
-  head_ $ do
-    meta_ [ charset_ "UTF-8" ]
-    title_ pageTitle_
-  body_ $ do
-    h1_ pageTitle_
-    div_ [ class_ "main" ] $ do
-      pageBody
-  where
-    pageTitle_ = text_ pageTitle
-
 ------------------------------------------------------------------------
 
 noContent :: IO a -> IO NoContent
@@ -330,27 +274,112 @@ transactionHandler h
     patchTransactionHandler txid txdiff = noContent $
       patchTransaction h txid txdiff
 
+type LiquidatorApi = "api" :> "v1" :> "transaction" :> TransactionApi
+
+liquidatorHandler
+  :: HandlerEnv
+  -> ServerT LiquidatorApi IO
+liquidatorHandler h
+  = transactionHandler h
+
 ------------------------------------------------------------------------
+
+simplePage
+  :: Text
+  -> Html ()
+  -> Html ()
+simplePage pageTitle pageBody = doctypehtml_ $ do
+  head_ $ do
+    meta_ [ charset_ "UTF-8" ]
+    title_ pageTitle_
+  body_ $ do
+    renderNav
+    h1_ pageTitle_
+    div_ [ class_ "main" ] $ do
+      pageBody
+  where
+    pageTitle_ = text_ pageTitle
+
+renderNav :: Html ()
+renderNav = nav_ $ ul_ $ do
+  li_ $ a_ [ href_ "/" ]      (text_ "Home")
+  li_ $ a_ [ href_ "/login" ] (text_ "Login")
 
 renderIndexPage :: Html ()
 renderIndexPage = simplePage "Liquidator" $ do
   p_ $ text_ "Hello, there"
+
+renderLoginPage :: Html ()
+renderLoginPage = simplePage "Login" $ do
+  form_ [ name_ "login"
+        , method_ "post"
+        , action_ "/login" -- TODO(joachifm) use API link
+        ] $ do
+    section_ $ do
+      input_ [ name_ "username"
+             , type_ "text"
+             , placeholder_ "Username"
+             , required_ "required"
+             , autofocus_
+             , tabindex_ "1"
+             ]
+      input_ [ name_ "passphrase"
+             , type_ "password"
+             , placeholder_ "Passphrase"
+             , required_ "required"
+             , tabindex_ "2"
+             ]
+    input_ [ type_ "submit"
+           , value_ "Login"
+             , tabindex_ "3"
+           ]
 
 getIndexPageHandler
   :: HandlerEnv
   -> IO (Html ())
 getIndexPageHandler _ = pure $ renderIndexPage
 
+getLoginPageHandler
+  :: HandlerEnv
+  -> IO (Html ())
+getLoginPageHandler _ = pure $ renderLoginPage
+
+postLoginHandler
+  :: HandlerEnv
+  -> IO NoContent
+postLoginHandler h = noContent $ return ()
+
+type WebApi
+  =    Get '[HTML] (Html ())
+
+  -- GET /login
+  --
+  -- Present login form, acquire user login details
+  :<|> "login" :>
+       Get '[HTML] (Html ())
+
+  -- POST /login
+  --
+  -- Check credentials, provide JWT
+  :<|> "login" :>
+       Post '[PlainText] NoContent
+
+webHandler :: HandlerEnv -> ServerT WebApi IO
+webHandler h
+  =    getIndexPageHandler h
+  :<|> getLoginPageHandler h
+  :<|> postLoginHandler h
+
 ----------------------------------------------------------------------------
 
 type Api
-  =    Get '[HTML] (Html ())
-  :<|> "api" :> "v1" :> "transaction" :> TransactionApi
+  =    WebApi
+  :<|> LiquidatorApi
 
-mkHandler :: HandlerEnv -> ServerT Api IO
-mkHandler h
-  =    getIndexPageHandler h
-  :<|> transactionHandler h
+handler :: HandlerEnv -> ServerT Api IO
+handler h
+  =    webHandler h
+  :<|> liquidatorHandler h
 
 ----------------------------------------------------------------------------
 
@@ -367,7 +396,7 @@ api :: Proxy Api
 api = Proxy
 
 server :: HandlerEnv -> Server Api
-server = hoistServer api convert . mkHandler
+server = hoistServer api convert . handler
 
 app :: IO Application
 app = serve api . server <$> newHandlerEnv
