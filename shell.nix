@@ -1,9 +1,14 @@
-with (import <nixpkgs>{ config = {}; });
+with (import <nixpkgs> { config = {}; });
 
 let
+  devTools = [
+    httpie
+    httperf
+  ];
+
   hsDevEnv = haskellPackages.ghcWithPackages (hsPkgs: with hsPkgs; [
-    cabal2nix
     cabal-install
+    cabal2nix
     ghcid
     hlint
     hspec-discover
@@ -12,6 +17,6 @@ in
 
 mkShell {
   name = "dev-shell";
-  buildInputs = [ hsDevEnv ];
+  buildInputs = devTools ++ [ hsDevEnv ];
   inherit hsDevEnv;
 }
