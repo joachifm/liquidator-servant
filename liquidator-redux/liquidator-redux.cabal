@@ -17,17 +17,28 @@ library
 
                      , lens
 
+                     , jose
+
                      , aeson
                      , http-api-data
+
+                     , lucid
+                     , servant-lucid
+
+                     , servant-swagger
+                     , swagger2
 
                      , servant
                      , servant-server
 
+                     , wai
+                     , wai-extra
+
                      , warp
+                     , warp-tls
   hs-source-dirs:      src
   default-language:    Haskell2010
   ghc-options:         -Wall
-                       -Werror
                        -Wcompat
                        -Wincomplete-record-updates
                        -Wincomplete-uni-patterns
@@ -37,5 +48,19 @@ library
                        -Widentities
                        -Wredundant-constraints
                        -Wall-missed-specialisations
-                       -Wno-error=unused-imports
-                       -Wno-error=type-defaults
+
+test-suite spec
+  type:                exitcode-stdio-1.0
+  main-is:             Spec.hs
+  other-modules:       LiquidatorSpec
+  hs-source-dirs:      test
+  build-depends:       base
+                     , bytestring
+                     , text
+
+                     , QuickCheck
+                     , hspec
+
+                     , liquidator-redux
+  default-language:    Haskell2010
+  ghc-options:         -Wall
