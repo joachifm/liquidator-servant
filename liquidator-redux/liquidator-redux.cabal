@@ -12,9 +12,12 @@ library
   exposed-modules:     Liquidator
                      , Money
                      , Api
+                     , UuidGen
+                     , IdSupply
   build-depends:       base
                      , bytestring
                      , containers
+                     , directory
                      , mtl
                      , text
                      , time
@@ -56,11 +59,12 @@ library
                        -Wincomplete-record-updates
                        -Wincomplete-uni-patterns
                        -Wpartial-fields
-                       -Wmissing-home-modules
-                       -Werror=missing-home-modules
                        -Widentities
                        -Wredundant-constraints
                        -Wall-missed-specialisations
+                       -threaded
+                       -rtsopts
+                       "-with-rtsopts=-N -T"
 
 test-suite spec
   type:                exitcode-stdio-1.0

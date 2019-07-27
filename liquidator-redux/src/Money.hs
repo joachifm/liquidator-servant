@@ -1,22 +1,31 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE Trustworthy #-}
 
 module Money
-  ( Money
+  (
+    -- * Types
+    Money
   , MoneyAmount
+
+    -- * Conversion
   , moneyFromAmount
   , moneyToReal
+
+    -- * Pretty-printing and parsing
   , ppMoney
   , parseMoney
   ) where
 
+import Data.Word (Word32)
+
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Read as Text
-import Data.Aeson (FromJSON, ToJSON)
-import Data.Word (Word32)
+
 import GHC.Generics (Generic)
+import Data.Aeson (FromJSON, ToJSON)
 
 -- | Underlying integer type used to represent money amounts.  Fixed-width
 -- but should be large enuf ...
