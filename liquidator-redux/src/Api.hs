@@ -331,18 +331,25 @@ app h
 
 run :: IO ()
 run
-  = Warp.runSettings (devSettings Warp.defaultSettings) . app =<< newHandle defaultConf
+  = Warp.runSettings warpSettings
+  . app =<< newHandle defaultConf
 
-devSettings :: (Warp.Settings -> Warp.Settings)
-devSettings
-  = (\ws -> Warp.setBeforeMainLoop (announce ws) ws)
-  . Warp.setPort 3000
-  . Warp.setHost "127.0.0.1"
-  . Warp.setLogger stdLogger
-  where
-    announce ws = putStrLn $
+warpSettings :: Warp.Settings
+warpSettings
+  = announce
+  . devSettings
+  $ Warp.defaultSettings
+
+announce :: (Warp.Settings -> Warp.Settings)
+announce = \ws -> flip Warp.setBeforeMainLoop ws $ putStrLn $
       "Listening on " <> show (Warp.getHost ws)
                       <> ":"
                       <> show (Warp.getPort ws)
 
+devSettings :: (Warp.Settings -> Warp.Settings)
+devSettings
+  = Warp.setPort 3000
+  . Warp.setHost "127.0.0.1"
+  . Warp.setLogger stdLogger
+  where
     stdLogger req status _ = print req >> print status >> putStrLn ""
