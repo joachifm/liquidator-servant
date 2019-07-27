@@ -21,11 +21,14 @@ library
 
                      , lens
 
+                     , cryptonite
+                     , jose
+                     , uuid
+
                      , aeson
                      , aeson-casing
                      , http-api-data
 
-                     , jose
                      , servant-auth
                      , servant-auth-server
 
@@ -43,6 +46,8 @@ library
 
                      , warp
                      , warp-tls
+
+                     , ekg
 
   hs-source-dirs:      src
 
