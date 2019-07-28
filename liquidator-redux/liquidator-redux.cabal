@@ -9,24 +9,14 @@ cabal-version:       >=1.10
 library
   default-language:    Haskell2010
 
-  exposed-modules:     Liquidator
-                     , Money
-                     , Api
-                     , UuidGen
-                     , IdSupply
+  exposed-modules:     Api
+
   build-depends:       base
                      , bytestring
                      , containers
-                     , directory
                      , mtl
                      , text
                      , time
-
-                     , lens
-
-                     , cryptonite
-                     , jose
-                     , uuid
 
                      , aeson
                      , aeson-casing
@@ -50,8 +40,6 @@ library
                      , warp
                      , warp-tls
 
-                     , ekg
-
   hs-source-dirs:      src
 
   ghc-options:         -Wall
@@ -66,31 +54,31 @@ library
                        -rtsopts
                        "-with-rtsopts=-N -T"
 
-test-suite spec
-  type:                exitcode-stdio-1.0
-  default-language:    Haskell2010
+-- test-suite spec
+--   type:                exitcode-stdio-1.0
+--   default-language:    Haskell2010
 
-  main-is:             Spec.hs
-  hs-source-dirs:      test
+--   main-is:             Spec.hs
+--   hs-source-dirs:      test
 
-  other-modules:       LiquidatorSpec
-                     , MoneySpec
+--   other-modules:       LiquidatorSpec
+--                      , MoneySpec
 
-  build-depends:       base
-                     , bytestring
-                     , text
+--   build-depends:       base
+--                      , bytestring
+--                      , text
 
-                     -- Common
-                     , aeson
+--                      -- Common
+--                      , aeson
 
-                     -- Test
-                     , QuickCheck
-                     , hspec
+--                      -- Test
+--                      , QuickCheck
+--                      , hspec
 
-                     -- Local
-                     , liquidator-redux
+--                      -- Local
+--                      , liquidator-redux
 
-  ghc-options:         -threaded -rtsopts
+--   ghc-options:         -threaded -rtsopts
 
 -- test-suite doctests
 --   type:          exitcode-stdio-1.0

@@ -8,6 +8,7 @@ module IdSupply
     -- * Methods
   , newIdSupply
   , supplyNextId
+  , resetIdSupply
 
     -- * Re-exports
   , Int64
@@ -23,3 +24,6 @@ newIdSupply = newIORef 1
 
 supplyNextId :: IdSupply -> IO Int64
 supplyNextId = flip atomicModifyIORef' (\i -> (i + 1, i))
+
+resetIdSupply :: IdSupply -> IO ()
+resetIdSupply = flip atomicModifyIORef' (\_ -> (1, ()))
