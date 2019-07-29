@@ -1,89 +1,54 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yml by hpack version 0.31.2.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: bf60ca1d934af29f596bafe25e1404746cd6652e96c8d861b6223923037ea84e
+
 name:                liquidator-redux
 version:             0.1.0.0
 license:             AGPL-3
 author:              Joachim Fasting
 maintainer:          joachifm@fastmail.fm
 build-type:          Simple
-cabal-version:       >=1.10
 
 library
-  default-language:    Haskell2010
-
-  exposed-modules:     Api
-
-  build-depends:       base
-                     , bytestring
-                     , containers
-                     , mtl
-                     , text
-                     , time
-
-                     , aeson
-                     , aeson-casing
-                     , http-api-data
-
-                     , servant-auth
-                     , servant-auth-server
-
-                     , lucid
-                     , servant-lucid
-
-                     , servant-swagger
-                     , swagger2
-
-                     , servant
-                     , servant-server
-
-                     , wai
-                     , wai-extra
-
-                     , warp
-                     , warp-tls
-
-  hs-source-dirs:      src
-
-  ghc-options:         -Wall
-                       -Wcompat
-                       -Wincomplete-record-updates
-                       -Wincomplete-uni-patterns
-                       -Wpartial-fields
-                       -Widentities
-                       -Wredundant-constraints
-                       -Wall-missed-specialisations
-                       -threaded
-                       -rtsopts
-                       "-with-rtsopts=-N -T"
-
--- test-suite spec
---   type:                exitcode-stdio-1.0
---   default-language:    Haskell2010
-
---   main-is:             Spec.hs
---   hs-source-dirs:      test
-
---   other-modules:       LiquidatorSpec
---                      , MoneySpec
-
---   build-depends:       base
---                      , bytestring
---                      , text
-
---                      -- Common
---                      , aeson
-
---                      -- Test
---                      , QuickCheck
---                      , hspec
-
---                      -- Local
---                      , liquidator-redux
-
---   ghc-options:         -threaded -rtsopts
-
--- test-suite doctests
---   type:          exitcode-stdio-1.0
---   default-language:    Haskell2010
---   ghc-options:   -threaded -rtsopts
---   main-is:       doctests.hs
---   hs-source-dirs: test
---   build-depends: base, doctest
+  exposed-modules:
+      Api
+  other-modules:
+      DesignDoc
+      IdSupply
+      Liquidator
+      Money
+      UuidGen
+      Paths_liquidator_redux
+  hs-source-dirs:
+      src
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints -fhide-source-paths
+  build-depends:
+      aeson
+    , aeson-casing
+    , base
+    , bytestring
+    , containers
+    , http-api-data
+    , jose
+    , lens
+    , lucid
+    , mtl
+    , servant
+    , servant-auth
+    , servant-auth-server
+    , servant-lucid
+    , servant-server
+    , servant-swagger
+    , swagger2
+    , text
+    , time
+    , uuid
+    , wai
+    , wai-extra
+    , warp
+    , warp-tls
+  default-language: Haskell2010
