@@ -3,10 +3,9 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StrictData #-}
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Liquidator where
 
@@ -19,14 +18,12 @@ import qualified Control.Exception as E
 import Control.Lens.Operators
 import Control.Lens.TH
 
-import Data.Int (Int32, Int64)
-import Data.Word (Word32)
+import Data.Int (Int64)
 
 import Data.ByteString (ByteString)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
-import qualified Data.Text.Read as Text
 
 import Data.Map (Map)
 import qualified Data.Map.Lazy as Map
@@ -60,7 +57,7 @@ import Lucid.Html5
 import Servant.HTML.Lucid
 
 import Servant.Auth.Server
-import Crypto.JOSE.JWK (JWK)
+--import Crypto.JOSE.JWK (JWK)
 
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
@@ -68,7 +65,7 @@ import qualified Network.Wai.Handler.WarpTLS as Warp
 import qualified Network.Wai.Middleware.ForceSSL as ForceSSL
 import qualified Network.Wai.Middleware.Gzip as Gzip
 
-import Options.Applicative
+--import Options.Applicative
 
 import IORef
 --import Money
@@ -76,7 +73,47 @@ import qualified Wai.Middleware.Hsts as Hsts
 
 ------------------------------------------------------------------------------
 
+showText :: (Show a) => a -> Text
+showText = Text.pack . show
+
+------------------------------------------------------------------------------
+
 type GenericId = Int64
+
+------------------------------------------------------------------------------
+
+aesonOptions :: Aeson.Options
+aesonOptions = aesonPrefix snakeCase
+
+formOptions :: FormOptions
+formOptions = defaultFormOptions
+  { fieldLabelModifier = Aeson.fieldLabelModifier aesonOptions
+  }
+
+------------------------------------------------------------------------------
+
+data Role
+  = RoleAdmin
+  | RoleOwner
+  | RoleUser
+  deriving (Eq, Enum, Show, Generic, FromJSON, ToJSON, FromJWT, ToJWT)
+
+makePrisms ''Role
+
+data UserSessionData = UserSessionData
+  { usersessionUsername :: Text
+  }
+  deriving (Eq, Generic)
+
+instance FromJSON UserSessionData where
+  parseJSON = Aeson.genericParseJSON aesonOptions
+
+instance ToJSON UserSessionData where
+  toJSON = Aeson.genericToJSON aesonOptions
+  toEncoding = Aeson.genericToEncoding aesonOptions
+
+data UserSession = UserSession { sessionId :: GenericId }
+  deriving (Eq, Generic, FromJSON, ToJSON, FromJWT, ToJWT)
 
 ------------------------------------------------------------------------------
 
@@ -100,19 +137,25 @@ data Handle = Handle
   , cookieSettings :: CookieSettings
   , nextId :: IORef GenericId
   , cache :: IORef (Map GenericId Text)
+  , sessions :: IORef (Map GenericId UserSessionData)
   , transactions :: IORef (Map GenericId Text)
   }
 
 newHandle :: IO Handle
 newHandle = Handle
   -- TODO(joachifm) persist JWT key (readKey/writeKey)
-  <$> (defaultJWTSettings <$> generateKey)
+  <$> (defaultJWTSettings <$> getJwk)
   <*> pure (defaultCookieSettings { cookieXsrfSetting = Just xsrfCookieSettings })
   <*> newIORef 1
   <*> newIORef mempty
   <*> newIORef mempty
+  <*> newIORef mempty
   where
     xsrfCookieSettings = defaultXsrfCookieSettings { xsrfExcludeGet = True }
+
+    getJwk = readKey "server.jwk" `E.catch` \(_::E.IOException) -> do
+      writeKey "server.jwk"
+      readKey "server.jwk"
 
 getNextId :: Handle -> IO GenericId
 getNextId = postIncIORef . nextId
@@ -158,6 +201,7 @@ renderNav = nav_ $ ul_ $ do
   li_ $ a_ [ href_ "/" ]      (text_ "Home")
   li_ $ a_ [ href_ "/login" ] (text_ "Login")
   li_ $ a_ [ href_ "/list" ]  (text_ "List")
+  li_ $ a_ [ href_ "/new" ]   (text_ "New")
 
 ------------------------------------------------------------------------------
 
@@ -190,25 +234,39 @@ renderLoginPage = simplePage "Login" $ do
              , tabindex_ "3"
            ]
 
+renderNewTransactionPage
+  :: UserSession
+  -> Html ()
+renderNewTransactionPage _ = simplePage "New" $ do
+  form_ [ name_ "new"
+        , method_ "post"
+        , action_ "/new" -- TODO(joachifm) use API link
+        ] $ do
+    section_ $ do
+      input_ [ name_ "subject"
+             , type_ "text"
+             , placeholder_ "Subject"
+             , required_ "required"
+             , autofocus_
+             , tabindex_ "1"
+             ]
+      input_ [ name_ "amount"
+             , type_ "text"
+             , placeholder_ "Amount"
+             , required_ "required"
+             , tabindex_ "2"
+             ]
+    input_ [ type_ "submit"
+           , value_ "Create"
+           , tabindex_ "3"
+           ]
+
 renderTransactionsListPage
-  :: Html ()
-renderTransactionsListPage = simplePage "Transactions" $ do
-  p_ "Nil"
-
-------------------------------------------------------------------------------
-
-aesonOptions :: Aeson.Options
-aesonOptions = aesonPrefix snakeCase
-
-formOptions :: FormOptions
-formOptions = defaultFormOptions
-  { fieldLabelModifier = Aeson.fieldLabelModifier aesonOptions
-  }
-
-------------------------------------------------------------------------------
-
-data UserSession = UserSession { sessionId :: GenericId }
-  deriving (Show, Eq, Generic, FromJSON, ToJSON, FromJWT, ToJWT)
+  :: UserSession
+  -> Html ()
+renderTransactionsListPage sess = simplePage "Transactions" $ do
+  p_ $ do
+    text_ ("The session id is : " <> showText (sessionId sess))
 
 ------------------------------------------------------------------------------
 
@@ -216,7 +274,10 @@ data LoginFormData = LoginFormData
   { loginformUsername :: Text
   , loginformPassword :: Text
   }
-  deriving (Show, Generic)
+  deriving (Generic)
+
+instance Show LoginFormData where
+  show _ = "LoginFormData { loginformUsername = \"<hidden>\", loginformPassword = \"<hidden>\" }"
 
 instance FromForm LoginFormData where
   fromForm = genericFromForm formOptions
@@ -245,6 +306,9 @@ type WebApi
                                              ] NoContent)
   :<|> Auth '[Cookie] UserSession :>
        "list" :>
+       Get '[HTML] (Html ())
+  :<|> Auth '[Cookie] UserSession :>
+       "new" :>
        Get '[HTML] (Html ())
 
 ------------------------------------------------------------------------------
@@ -281,12 +345,21 @@ postLoginHandler h rq = do
     else
       E.throwIO err401
 
+getNewTransactionPageHandler
+  :: Handle
+  -> AuthResult UserSession
+  -> IO (Html ())
+getNewTransactionPageHandler h (Authenticated sess)
+  = pure $ renderNewTransactionPage sess
+getNewTransactionPageHandler _ _
+  = E.throwIO err401
+
 getTransactionsListPageHandler
   :: Handle
   -> AuthResult UserSession
   -> IO (Html ())
-getTransactionsListPageHandler _ (Authenticated _)
-  = pure $ renderTransactionsListPage
+getTransactionsListPageHandler _ (Authenticated sess)
+  = pure $ renderTransactionsListPage sess
 getTransactionsListPageHandler _ _
   = E.throwIO err401
 
@@ -298,17 +371,18 @@ webHandler h
   :<|> getLoginPageHandler h
   :<|> postLoginHandler h
   :<|> getTransactionsListPageHandler h
+  :<|> getNewTransactionPageHandler h
 
 ------------------------------------------------------------------------------
 
 type Api
   =    WebApi
-  :<|> "api" :> "v1.0" :> Raw
+  :<|> "api" :> "v1.0" :> EmptyAPI
 
 handler :: Handle -> ServerT Api IO
 handler h
   =    webHandler h
-  :<|> serveDirectoryFileServer "static"
+  :<|> emptyServer
 
 ----------------------------------------------------------------------------
 
@@ -345,6 +419,11 @@ app = do
   return $ serveWithContext api (authContextVal h) (server h)
 
 ----------------------------------------------------------------------------
+
+initConfig
+  :: IO ()
+initConfig = do
+  writeKey "server.jwk"
 
 run :: IO ()
 run
