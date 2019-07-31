@@ -26,6 +26,7 @@ import Data.ByteString (ByteString)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Read as Text
+import qualified Data.Text.Encoding as Text
 
 import Data.Map (Map)
 import qualified Data.Map.Lazy as Map
@@ -70,11 +71,11 @@ import Options.Applicative
 import IORef
 import Money
 
-------------------------------------------------------------------------
+------------------------------------------------------------------------------
 
 type GenericId = Int64
 
-------------------------------------------------------------------------
+------------------------------------------------------------------------------
 
 data Handle = Handle
   { jwtSettings :: JWTSettings
@@ -94,7 +95,7 @@ newHandle = Handle
 getNextId :: Handle -> IO GenericId
 getNextId = postIncIORef . nextId
 
-------------------------------------------------------------------------
+------------------------------------------------------------------------------
 
 noContent
   :: IO a
@@ -109,7 +110,7 @@ redirect
 redirect loc orig
   = pure $ addHeader loc orig
 
-------------------------------------------------------------------------
+------------------------------------------------------------------------------
 
 text_ :: Text -> Html ()
 text_ = toHtml
@@ -135,7 +136,7 @@ renderNav = nav_ $ ul_ $ do
   li_ $ a_ [ href_ "/" ]      (text_ "Home")
   li_ $ a_ [ href_ "/login" ] (text_ "Login")
 
-------------------------------------------------------------------------
+------------------------------------------------------------------------------
 
 renderIndexPage :: Html ()
 renderIndexPage = simplePage "Liquidator" $ do
@@ -166,7 +167,7 @@ renderLoginPage = simplePage "Login" $ do
              , tabindex_ "3"
            ]
 
-------------------------------------------------------------------------
+------------------------------------------------------------------------------
 
 aesonOptions :: Aeson.Options
 aesonOptions = aesonPrefix snakeCase
@@ -176,12 +177,12 @@ formOptions = defaultFormOptions
   { fieldLabelModifier = Aeson.fieldLabelModifier aesonOptions
   }
 
-------------------------------------------------------------------------
+------------------------------------------------------------------------------
 
 data UserSession = UserSession { sessionId :: GenericId }
   deriving (Show, Eq, Generic, FromJSON, ToJSON, FromJWT, ToJWT)
 
-------------------------------------------------------------------------
+------------------------------------------------------------------------------
 
 data LoginFormData = LoginFormData
   { username :: Text
@@ -189,7 +190,15 @@ data LoginFormData = LoginFormData
   }
   deriving (Show, Generic, FromForm, ToForm)
 
-------------------------------------------------------------------------
+loginFormDataToBasicAuthData
+  :: LoginFormData
+  -> BasicAuthData
+loginFormDataToBasicAuthData formData
+  = BasicAuthData { basicAuthUsername = Text.encodeUtf8 (username formData)
+                  , basicAuthPassword = Text.encodeUtf8 (password formData)
+                  }
+
+------------------------------------------------------------------------------
 
 type WebApi
   =    Get '[HTML] (Html ())
@@ -203,7 +212,7 @@ type WebApi
                                              , Header "Set-Cookie" SetCookie
                                              ] NoContent)
 
-------------------------------------------------------------------------
+------------------------------------------------------------------------------
 
 getIndexPageHandler
   :: Handle
@@ -218,18 +227,22 @@ getLoginPageHandler _ = pure $ renderLoginPage
 postLoginHandler
   :: Handle
   -> LoginFormData
-  -> IO (Headers '[ Header "Location"  Text
+  -> IO (Headers '[ Header "Location" Text
                   , Header "Set-Cookie" SetCookie
                   , Header "Set-Cookie" SetCookie
                   ] NoContent)
 postLoginHandler h rq = do
-  if (username rq == "admin" && password rq == "admin")
+  if username rq == "admin" && password rq == "admin"
     then do
       let sess = UserSession 42
-      mApplyCookies <- acceptLogin (cookieSettings h) (jwtSettings h) sess
-      case mApplyCookies of
-        Nothing           -> E.throwIO err401
-        Just applyCookies -> return $ addHeader "/" (applyCookies NoContent)
+      applyCookies <- acceptLogin (cookieSettings h) (jwtSettings h) sess
+      case applyCookies of
+        Just fn ->
+          pure . addHeader "/"
+               . fn
+               $ NoContent
+        Nothing ->
+          E.throwIO err401
     else
       E.throwIO err401
 
@@ -241,7 +254,7 @@ webHandler h
   :<|> getLoginPageHandler h
   :<|> postLoginHandler h
 
-----------------------------------------------------------------------------
+------------------------------------------------------------------------------
 
 type Api
   =    WebApi
@@ -312,11 +325,27 @@ prodSettings
   = Warp.setPort 80
   . Warp.setHost "*"
 
-------------------------------------------------------------------------
+------------------------------------------------------------------------------
 -- Middleware: HTTP Strict Transport Security
-------------------------------------------------------------------------
+------------------------------------------------------------------------------
+
+data HstsConfig = HstsConfig
+  { hstsMaxAge :: Int
+  , hstsIncludeSubDomains :: Bool
+  }
+
+defaultHstsConfig :: HstsConfig
+defaultHstsConfig = HstsConfig
+  { hstsMaxAge = 31536000
+  , hstsIncludeSubDomains = True
+  }
+
+hstsHeaderValue :: HstsConfig -> ByteString
+hstsHeaderValue (HstsConfig maxAge includeSubDomains) = Text.encodeUtf8 $
+  "max-age=" <> Text.pack (show maxAge) <>
+  (if includeSubDomains then "; includeSubDomains" else "")
 
 hsts :: Middleware
 hsts = AddHeaders.addHeaders [
-  ("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+  ("Strict-Transport-Security", hstsHeaderValue defaultHstsConfig)
   ]
