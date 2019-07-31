@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: bf60ca1d934af29f596bafe25e1404746cd6652e96c8d861b6223923037ea84e
+-- hash: cfd99d9b24ab7ad521b8081d3429a589bce3969191d35672a40e4a26d4d80a2c
 
 name:                liquidator-redux
 version:             0.1.0.0
@@ -32,6 +32,8 @@ library
     , base
     , bytestring
     , containers
+    , ekg
+    , fast-logger
     , http-api-data
     , jose
     , lens
