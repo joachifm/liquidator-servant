@@ -1,4 +1,10 @@
-module DesignDoc where
+module DesignDoc
+  (
+    -- $architecture
+    -- $identdesign
+    -- $schemadesign
+    -- $authdesign
+  ) where
 
 -- |
 -- $architecture

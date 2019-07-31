@@ -17,6 +17,7 @@ ghc-options:
   -Wpartial-fields
   -Wredundant-constraints
   -fhide-source-paths
+  -Wno-unused-imports
 
 dependencies:
   - base
@@ -54,6 +55,16 @@ library:
   exposed-modules:
     - Liquidator
     - Money
+    - Wai.Middleware.Hsts
+
+executables:
+  liquidator-server:
+    main: Main.hs
+    source-dirs:
+      - app/server
+      - src
+
+    ghc-options: -threaded -rtsopts
 
 tests:
   spec:
@@ -63,6 +74,7 @@ tests:
       - src
 
     cpp-options: -DTEST
+    ghc-options: -O0 -threaded
 
     dependencies:
       - hspec

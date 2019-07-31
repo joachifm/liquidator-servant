@@ -25,8 +25,8 @@ import Data.Word (Word32)
 import Data.ByteString (ByteString)
 import Data.Text (Text)
 import qualified Data.Text as Text
-import qualified Data.Text.Read as Text
 import qualified Data.Text.Encoding as Text
+import qualified Data.Text.Read as Text
 
 import Data.Map (Map)
 import qualified Data.Map.Lazy as Map
@@ -44,6 +44,10 @@ import Data.IORef
   , readIORef
   )
 
+import Data.Time.Clock
+  ( UTCTime
+  , getCurrentTime
+  )
 import Data.Time.Clock.System
   ( SystemTime(..)
   , getSystemTime
@@ -61,15 +65,14 @@ import Crypto.JOSE.JWK (JWK)
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
 
-import Network.Wai (Application, Middleware)
-import qualified Network.Wai.Middleware.AddHeaders as AddHeaders
 import qualified Network.Wai.Middleware.ForceSSL as ForceSSL
 import qualified Network.Wai.Middleware.Gzip as Gzip
 
 import Options.Applicative
 
 import IORef
-import Money
+--import Money
+import qualified Wai.Middleware.Hsts as Hsts
 
 ------------------------------------------------------------------------------
 
@@ -77,20 +80,39 @@ type GenericId = Int64
 
 ------------------------------------------------------------------------------
 
+data Config = Config
+  { jwtKeyFile :: FilePath
+  , tlsCrtFile :: FilePath
+  , tlsKeyFile :: FilePath
+  }
+  deriving (Show, Generic, FromJSON, ToJSON)
+
+defaultConfig
+  :: Config
+defaultConfig = Config
+  { jwtKeyFile = "server.jwk"
+  , tlsCrtFile = "server.crt"
+  , tlsKeyFile = "server.key"
+  }
+
 data Handle = Handle
   { jwtSettings :: JWTSettings
   , cookieSettings :: CookieSettings
   , nextId :: IORef GenericId
   , cache :: IORef (Map GenericId Text)
+  , transactions :: IORef (Map GenericId Text)
   }
 
 newHandle :: IO Handle
 newHandle = Handle
-  -- TODO(joachifm) persist key (readKey/writeKey)
+  -- TODO(joachifm) persist JWT key (readKey/writeKey)
   <$> (defaultJWTSettings <$> generateKey)
-  <*> pure defaultCookieSettings
+  <*> pure (defaultCookieSettings { cookieXsrfSetting = Just xsrfCookieSettings })
   <*> newIORef 1
   <*> newIORef mempty
+  <*> newIORef mempty
+  where
+    xsrfCookieSettings = defaultXsrfCookieSettings { xsrfExcludeGet = True }
 
 getNextId :: Handle -> IO GenericId
 getNextId = postIncIORef . nextId
@@ -135,6 +157,7 @@ renderNav :: Html ()
 renderNav = nav_ $ ul_ $ do
   li_ $ a_ [ href_ "/" ]      (text_ "Home")
   li_ $ a_ [ href_ "/login" ] (text_ "Login")
+  li_ $ a_ [ href_ "/list" ]  (text_ "List")
 
 ------------------------------------------------------------------------------
 
@@ -167,6 +190,11 @@ renderLoginPage = simplePage "Login" $ do
              , tabindex_ "3"
            ]
 
+renderTransactionsListPage
+  :: Html ()
+renderTransactionsListPage = simplePage "Transactions" $ do
+  p_ "Nil"
+
 ------------------------------------------------------------------------------
 
 aesonOptions :: Aeson.Options
@@ -185,18 +213,22 @@ data UserSession = UserSession { sessionId :: GenericId }
 ------------------------------------------------------------------------------
 
 data LoginFormData = LoginFormData
-  { username :: Text
-  , password :: Text
+  { loginformUsername :: Text
+  , loginformPassword :: Text
   }
-  deriving (Show, Generic, FromForm, ToForm)
+  deriving (Show, Generic)
+
+instance FromForm LoginFormData where
+  fromForm = genericFromForm formOptions
 
 loginFormDataToBasicAuthData
   :: LoginFormData
   -> BasicAuthData
 loginFormDataToBasicAuthData formData
-  = BasicAuthData { basicAuthUsername = Text.encodeUtf8 (username formData)
-                  , basicAuthPassword = Text.encodeUtf8 (password formData)
-                  }
+  = BasicAuthData
+    { basicAuthUsername = Text.encodeUtf8 (loginformUsername formData)
+    , basicAuthPassword = Text.encodeUtf8 (loginformPassword formData)
+    }
 
 ------------------------------------------------------------------------------
 
@@ -207,10 +239,13 @@ type WebApi
   :<|> "login" :>
        ReqBody '[FormUrlEncoded] LoginFormData :>
        Verb 'POST 301 '[PlainText] (Headers '[ Header "Location" Text
-                                               -- XSRF-token & JWT-cookie
+                                               -- XSRF-TOKEN & JWT-COOKIE
                                              , Header "Set-Cookie" SetCookie
                                              , Header "Set-Cookie" SetCookie
                                              ] NoContent)
+  :<|> Auth '[Cookie] UserSession :>
+       "list" :>
+       Get '[HTML] (Html ())
 
 ------------------------------------------------------------------------------
 
@@ -232,7 +267,7 @@ postLoginHandler
                   , Header "Set-Cookie" SetCookie
                   ] NoContent)
 postLoginHandler h rq = do
-  if username rq == "admin" && password rq == "admin"
+  if loginformUsername rq == "admin" && loginformPassword rq == "admin"
     then do
       let sess = UserSession 42
       applyCookies <- acceptLogin (cookieSettings h) (jwtSettings h) sess
@@ -246,6 +281,15 @@ postLoginHandler h rq = do
     else
       E.throwIO err401
 
+getTransactionsListPageHandler
+  :: Handle
+  -> AuthResult UserSession
+  -> IO (Html ())
+getTransactionsListPageHandler _ (Authenticated _)
+  = pure $ renderTransactionsListPage
+getTransactionsListPageHandler _ _
+  = E.throwIO err401
+
 webHandler
   :: Handle
   -> ServerT WebApi IO
@@ -253,6 +297,7 @@ webHandler h
   =    getIndexPageHandler h
   :<|> getLoginPageHandler h
   :<|> postLoginHandler h
+  :<|> getTransactionsListPageHandler h
 
 ------------------------------------------------------------------------------
 
@@ -276,14 +321,28 @@ convert = Handler . ExceptT . E.try
 
 ----------------------------------------------------------------------------
 
+authContextProxy
+  :: Proxy '[CookieSettings, JWTSettings]
+authContextProxy = Proxy
+
+authContextVal
+  :: Handle
+  -> Context '[CookieSettings, JWTSettings]
+authContextVal h
+  =  cookieSettings h
+  :. jwtSettings h
+  :. EmptyContext
+
 api :: Proxy Api
 api = Proxy
 
 server :: Handle -> Server Api
-server = hoistServer api convert . handler
+server = hoistServerWithContext api authContextProxy convert . handler
 
 app :: IO Application
-app = serve api . server <$> newHandle
+app = do
+  h <- newHandle
+  return $ serveWithContext api (authContextVal h) (server h)
 
 ----------------------------------------------------------------------------
 
@@ -292,7 +351,7 @@ run
   = Warp.runTLS tlsSettings warpSettings
   . Gzip.gzip Gzip.def
   . ForceSSL.forceSSL
-  . hsts
+  . Hsts.hsts
   =<< app
 
 tlsSettings :: Warp.TLSSettings
@@ -324,28 +383,3 @@ prodSettings :: (Warp.Settings -> Warp.Settings)
 prodSettings
   = Warp.setPort 80
   . Warp.setHost "*"
-
-------------------------------------------------------------------------------
--- Middleware: HTTP Strict Transport Security
-------------------------------------------------------------------------------
-
-data HstsConfig = HstsConfig
-  { hstsMaxAge :: Int
-  , hstsIncludeSubDomains :: Bool
-  }
-
-defaultHstsConfig :: HstsConfig
-defaultHstsConfig = HstsConfig
-  { hstsMaxAge = 31536000
-  , hstsIncludeSubDomains = True
-  }
-
-hstsHeaderValue :: HstsConfig -> ByteString
-hstsHeaderValue (HstsConfig maxAge includeSubDomains) = Text.encodeUtf8 $
-  "max-age=" <> Text.pack (show maxAge) <>
-  (if includeSubDomains then "; includeSubDomains" else "")
-
-hsts :: Middleware
-hsts = AddHeaders.addHeaders [
-  ("Strict-Transport-Security", hstsHeaderValue defaultHstsConfig)
-  ]

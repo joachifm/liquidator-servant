@@ -3,6 +3,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Trustworthy #-}
 
+{-|
+Module: Money
+-}
+
 module Money
   (
     -- * Types
