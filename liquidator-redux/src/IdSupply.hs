@@ -15,7 +15,9 @@ module IdSupply
   ) where
 
 import Data.Int (Int64)
-import Data.IORef (IORef, newIORef, atomicModifyIORef')
+import Data.IORef (IORef, newIORef, writeIORef)
+
+import IORef
 
 type IdSupply = IORef Int64
 
@@ -23,7 +25,7 @@ newIdSupply :: IO IdSupply
 newIdSupply = newIORef 1
 
 supplyNextId :: IdSupply -> IO Int64
-supplyNextId = flip atomicModifyIORef' (\i -> (i + 1, i))
+supplyNextId = postIncIORef
 
 resetIdSupply :: IdSupply -> IO ()
-resetIdSupply = flip atomicModifyIORef' (\_ -> (1, ()))
+resetIdSupply = flip writeIORef 1

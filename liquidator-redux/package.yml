@@ -1,7 +1,10 @@
+verbatim:
+  cabal-version: 2.4
+
 name: liquidator-redux
 version: 0.1.0.0
 
-license: AGPL-3
+license: 'AGPL-3.0-or-later'
 author: Joachim Fasting
 maintainer: joachifm@fastmail.fm
 
@@ -19,32 +22,51 @@ dependencies:
   - base
   - bytestring
   - containers
+  - lens
   - mtl
   - text
   - time
 
   - aeson
-  - aeson-casing
-  - ekg
-  - fast-logger
   - http-api-data
   - jose
-  - lens
   - lucid
   - servant
   - servant-auth
   - servant-auth-server
   - servant-lucid
   - servant-server
-  - servant-swagger
-  - swagger2
-  - uuid
   - wai
   - wai-extra
   - warp
   - warp-tls
 
+  - aeson-casing
+  - ekg
+  - fast-logger
+  - optparse-applicative
+  - servant-swagger
+  - swagger2
+  - uuid
+
 library:
   source-dirs: src
   exposed-modules:
-    - Liquidator.HttpServer
+    - Liquidator
+    - Money
+
+tests:
+  spec:
+    main: Spec.hs
+    source-dirs:
+      - test
+      - src
+
+    cpp-options: -DTEST
+
+    dependencies:
+      - hspec
+      - QuickCheck
+
+    build-tools:
+      - hspec-discover

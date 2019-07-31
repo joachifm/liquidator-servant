@@ -1,26 +1,26 @@
-cabal-version: 1.12
+cabal-version: 2.4
 
 -- This file has been generated from package.yml by hpack version 0.31.2.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: cfd99d9b24ab7ad521b8081d3429a589bce3969191d35672a40e4a26d4d80a2c
+-- hash: 1eb6ba5b7bd48f479cf2da15d48d579d06e86ce50f5da7774864cc79fee58e9f
 
 name:                liquidator-redux
 version:             0.1.0.0
-license:             AGPL-3
+license:             AGPL-3.0-or-later
 author:              Joachim Fasting
 maintainer:          joachifm@fastmail.fm
 build-type:          Simple
 
 library
   exposed-modules:
-      Api
+      Liquidator
+      Money
   other-modules:
       DesignDoc
       IdSupply
-      Liquidator
-      Money
+      IORef
       UuidGen
       Paths_liquidator_redux
   hs-source-dirs:
@@ -39,6 +39,60 @@ library
     , lens
     , lucid
     , mtl
+    , optparse-applicative
+    , servant
+    , servant-auth
+    , servant-auth-server
+    , servant-lucid
+    , servant-server
+    , servant-swagger
+    , swagger2
+    , text
+    , time
+    , uuid
+    , wai
+    , wai-extra
+    , warp
+    , warp-tls
+  default-language: Haskell2010
+
+test-suite spec
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      IORefSpec
+      LiquidatorSpec
+      MoneySpec
+      DesignDoc
+      IdSupply
+      IORef
+      Liquidator
+      Money
+      UuidGen
+      Paths_liquidator_redux
+  hs-source-dirs:
+      test
+      src
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints -fhide-source-paths
+  cpp-options: -DTEST
+  build-tool-depends:
+      hspec-discover:hspec-discover
+  build-depends:
+      QuickCheck
+    , aeson
+    , aeson-casing
+    , base
+    , bytestring
+    , containers
+    , ekg
+    , fast-logger
+    , hspec
+    , http-api-data
+    , jose
+    , lens
+    , lucid
+    , mtl
+    , optparse-applicative
     , servant
     , servant-auth
     , servant-auth-server

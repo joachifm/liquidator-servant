@@ -6,6 +6,9 @@ module UuidGen
 
     -- * Methods
   , nextUuid
+
+    -- * Re-exports
+  , Text
   )
   where
 
@@ -21,7 +24,7 @@ import qualified Data.UUID.V1 as UUID
 
 -- | Exhausted UUID supply.
 data UiidGenException = MkUuidGenException
-  deriving (Eq, Show)
+  deriving (Show)
 
 instance E.Exception UiidGenException
 
