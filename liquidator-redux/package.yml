@@ -1,0 +1,50 @@
+name: liquidator-redux
+version: 0.1.0.0
+
+license: AGPL-3
+author: Joachim Fasting
+maintainer: joachifm@fastmail.fm
+
+ghc-options:
+  -Wall
+  -Wcompat
+  -Widentities
+  -Wincomplete-record-updates
+  -Wincomplete-uni-patterns
+  -Wpartial-fields
+  -Wredundant-constraints
+  -fhide-source-paths
+
+dependencies:
+  - base
+  - bytestring
+  - containers
+  - mtl
+  - text
+  - time
+
+  - aeson
+  - aeson-casing
+  - ekg
+  - fast-logger
+  - http-api-data
+  - jose
+  - lens
+  - lucid
+  - servant
+  - servant-auth
+  - servant-auth-server
+  - servant-lucid
+  - servant-server
+  - servant-swagger
+  - swagger2
+  - uuid
+  - wai
+  - wai-extra
+  - warp
+  - warp-tls
+
+library:
+  source-dirs: src
+  exposed-modules:
+    - Liquidator.HttpServer
