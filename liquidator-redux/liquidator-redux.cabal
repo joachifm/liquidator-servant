@@ -4,7 +4,7 @@ cabal-version: 2.4
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 7cea58d5b15a23496e0b62116612a2175c5680e790e980fb14ae36d83d52e7b3
+-- hash: 53f9bb162a0dcb86eeef75d1a701847245f6428ff5b10c4ac871297811d754a2
 
 name:                liquidator-redux
 version:             0.1.0.0
@@ -28,7 +28,7 @@ library
       Paths_liquidator_redux
   hs-source-dirs:
       src
-  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints -fhide-source-paths -Wno-unused-imports -ddump-to-file -ddump-simpl -ddump-asm -ddump-inlinings -ddump-rule-firings -ddump-rule-rewrites -ddump-spec -ddump-minimal-imports -ddump-simpl-stats
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints -fhide-source-paths -Wall-missed-specialisations -Wno-unused-imports -ddump-to-file -ddump-simpl -fspecialise-aggressively -fexpose-all-unfoldings
   build-depends:
       aeson
     , aeson-casing
@@ -81,7 +81,7 @@ executable liquidator-server
   hs-source-dirs:
       app/server
       src
-  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints -fhide-source-paths -Wno-unused-imports -ddump-to-file -ddump-simpl -ddump-asm -ddump-inlinings -ddump-rule-firings -ddump-rule-rewrites -ddump-spec -ddump-minimal-imports -ddump-simpl-stats -threaded -rtsopts
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints -fhide-source-paths -Wall-missed-specialisations -Wno-unused-imports -ddump-to-file -ddump-simpl -fspecialise-aggressively -fexpose-all-unfoldings -threaded -rtsopts
   build-depends:
       aeson
     , aeson-casing
@@ -138,7 +138,7 @@ test-suite spec
   hs-source-dirs:
       test
       src
-  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints -fhide-source-paths -Wno-unused-imports -ddump-to-file -ddump-simpl -ddump-asm -ddump-inlinings -ddump-rule-firings -ddump-rule-rewrites -ddump-spec -ddump-minimal-imports -ddump-simpl-stats -O0 -threaded
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints -fhide-source-paths -Wall-missed-specialisations -Wno-unused-imports -ddump-to-file -ddump-simpl -fspecialise-aggressively -fexpose-all-unfoldings -O0 -threaded
   cpp-options: -DTEST
   build-tool-depends:
       hspec-discover:hspec-discover

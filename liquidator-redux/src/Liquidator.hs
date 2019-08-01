@@ -12,11 +12,10 @@ module Liquidator where
 
 import GHC.Generics (Generic)
 
-import Control.Monad (join, forM_, when)
+import Control.Monad (join, forM_)
 import Control.Monad.Except (ExceptT(ExceptT))
 import qualified Control.Exception as E
 
-import qualified Control.Lens as Lens
 import Control.Lens.Operators
 import Control.Lens.TH
 
@@ -24,12 +23,8 @@ import Data.Maybe (fromMaybe)
 
 import Data.Int (Int64)
 
-import Data.ByteString (ByteString)
 import Data.Text (Text)
-import qualified Data.Text as Text
-import qualified Data.Text.IO as Text
 import qualified Data.Text.Encoding as Text
-import qualified Data.ByteString.Lazy as LB
 
 import Data.Map (Map)
 import qualified Data.Map.Lazy as Map
@@ -43,6 +38,8 @@ import Data.IORef
   )
 
 import Data.Time.Calendar (Day)
+
+{-
 import Data.Time.Clock
   ( UTCTime
   , getCurrentTime
@@ -51,20 +48,20 @@ import Data.Time.Clock.System
   ( SystemTime(..)
   , getSystemTime
   )
+-}
+
+import System.Directory (renamePath)
+import System.Log.FastLogger
 
 import Data.Aeson (FromJSON(..), ToJSON(..))
 import Data.Aeson.Casing (aesonPrefix, snakeCase)
 import qualified Data.Aeson as Aeson
 
-import Web.FormUrlEncoded (FromForm, ToForm)
+import Web.FormUrlEncoded (FromForm)
 import qualified Web.FormUrlEncoded as Form
 import Web.Cookie
 
 import Servant
-
-import Data.Swagger (Swagger)
-import qualified Data.Swagger as Swagger
-import Servant.Swagger
 
 import Lucid (Html, toHtml)
 import Lucid.Html5
@@ -77,10 +74,6 @@ import qualified Network.Wai.Handler.WarpTLS as Warp
 
 import qualified Network.Wai.Middleware.ForceSSL as ForceSSL
 import qualified Network.Wai.Middleware.Gzip as Gzip
-
-import System.Log.FastLogger
-
-import System.Directory (renamePath)
 
 import IORef
 import Util
@@ -203,7 +196,7 @@ restoreHandleState
   -> SavedState
   -> IO ()
 restoreHandleState h s = do
-  writeIORef (h^.nextId) (savedstateNextId s)
+  writeIORef (h^.nextId)       (savedstateNextId s)
   writeIORef (h^.transactions) (savedstateTransactions s)
 
 dumpState
@@ -211,8 +204,7 @@ dumpState
   -> FilePath
   -> IO ()
 dumpState h outFile = do
-  let
-    tmpFile = outFile <> ".tmp"
+  let tmpFile = outFile <> ".tmp"
   Aeson.encodeFile tmpFile =<< saveHandleState h
   renamePath tmpFile outFile
 
@@ -221,10 +213,21 @@ loadState
   -> FilePath
   -> IO ()
 loadState h inFile = do
-  s <- Aeson.decodeFileStrict' inFile `E.catch` \(_::E.IOException) -> return Nothing
+  s <- Aeson.decodeFileStrict' inFile
+       `E.catch` \(_::E.IOException) -> return Nothing
   case s of
     Just v  -> restoreHandleState h v
     Nothing -> return ()
+
+withHandle
+  :: (Handle -> IO a)
+  -> IO a
+withHandle act = E.bracket
+  (newHandle >>= \h -> loadState h stateFile >> return h)
+  (flip dumpState stateFile)
+  act
+  where
+    stateFile = "_liquidator.state"
 
 ------------------------------------------------------------------------------
 
@@ -339,7 +342,7 @@ renderNewTransactionPage _ mbXsrfToken = simplePage' "New" mbXsrfToken $ do
              , type_ "number"
              , placeholder_ "0"
              , min_ "0"
-             , max_ "9999"
+             , max_ "999999"
              , required_ "required"
              , tabindex_ "2"
              ]
@@ -431,7 +434,8 @@ makeLenses ''AddTransactionParam
 getAllTransactions
   :: Handle
   -> IO [(GenericId, Text)]
-getAllTransactions h = Map.toList <$> readIORef (h^.transactions)
+getAllTransactions h
+  = Map.toList <$> readIORef (h^.transactions)
 
 addTransaction
   :: Handle
@@ -561,7 +565,6 @@ getNewTransactionPageHandler
   -> Maybe Cookies'
   -> IO (Html ())
 getNewTransactionPageHandler h (Authenticated sess) mbCookies = do
-  print (unCookies <$> mbCookies)
   pure . renderNewTransactionPage sess
        $ join (lookupXsrfTokenText (cookieXsrfSetting (h^.cookieSettings)) <$>
                                    mbCookies)
@@ -625,7 +628,10 @@ handler h
 convert
   :: IO a
   -> Handler a
-convert = Handler . ExceptT . E.try
+convert
+  = Handler
+  . ExceptT
+  . E.try
 
 ----------------------------------------------------------------------------
 
@@ -647,27 +653,13 @@ api = Proxy
 server :: Handle -> Server Api
 server = hoistServerWithContext api authContextProxy convert . handler
 
--- TODO(joachifm) refactor appWith, withApp et al
-
 appWith :: Handle -> Application
-appWith h = VerifyCsrToken.verifyCsrToken $
-  serveWithContext api (authContextVal h) (server h)
-
-app :: IO Application
-app = appWith <$> newHandle
-
-withApp
-  :: (Application -> IO a)
-  -> IO a
-withApp act = E.bracket
-  (newHandle >>= \h -> loadState h "_liquidator.state" >> return h)
-  (\h -> dumpState h "_liquidator.state")
-  (\h -> act $ appWith h)
+appWith h = serveWithContext api (authContextVal h) (server h)
 
 ----------------------------------------------------------------------------
 
 run :: IO ()
-run = withApp runWith
+run = withHandle $ \h -> runWith (appWith h)
 
 runWith :: Application -> IO ()
 runWith
@@ -675,6 +667,7 @@ runWith
   . Gzip.gzip Gzip.def
   . ForceSSL.forceSSL
   . Hsts.hsts
+  . VerifyCsrToken.verifyCsrToken
 
 tlsSettings :: Warp.TLSSettings
 tlsSettings = (Warp.tlsSettings "site.crt" "site.key")

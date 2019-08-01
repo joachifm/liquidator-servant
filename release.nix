@@ -15,9 +15,21 @@ let
     httperf
   ];
 
-  liquidator-redux = haskellPackages.callPackage ./liquidator-redux-package.nix {};
+  shellTools = [
+    coreutils
+    findutils
+    gawk
+    gnugrep
+    gnused
+  ];
 
-  hsDevEnv = haskellPackages.ghcWithPackages (hsPkgs: with hsPkgs; [
+  haskellPackagesLocal = haskellPackages.override {
+    overrides = self: super: {
+      liquidator-redux = self.callPackage ./liquidator-redux-package.nix {};
+    };
+  };
+
+  hsDevEnv = haskellPackagesLocal.ghcWithPackages (hsPkgs: with hsPkgs; [
     cabal-install
     cabal2nix
     hpack
@@ -33,14 +45,20 @@ in
 
 rec {
 
+  inherit selfSrc;
+
   devShell = mkShell {
     name = "dev-shell";
-    buildInputs = devTools ++ [ hsDevEnv ];
+    buildInputs = shellTools ++ devTools ++ [ hsDevEnv ];
     inherit hsDevEnv;
+    shellHook = ''
+      # Set NIX_GHC et al.
+      eval $(LC_ALL=C egrep '^export' ${hsDevEnv}/bin/ghc)
+    '';
   };
 
   inherit hsDevEnv;
 
-  inherit liquidator-redux;
+  inherit haskellPackagesLocal;
 
 }

@@ -17,16 +17,12 @@ ghc-options:
   -Wpartial-fields
   -Wredundant-constraints
   -fhide-source-paths
+  -Wall-missed-specialisations
   -Wno-unused-imports
   -ddump-to-file
   -ddump-simpl
-  -ddump-asm
-  -ddump-inlinings
-  -ddump-rule-firings
-  -ddump-rule-rewrites
-  -ddump-spec
-  -ddump-minimal-imports
-  -ddump-simpl-stats
+  -fspecialise-aggressively
+  -fexpose-all-unfoldings
 
 dependencies:
   - base

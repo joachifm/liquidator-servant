@@ -39,7 +39,7 @@ instance E.Exception UiidGenException
 --
 -- Throws 'UuidGen.UiidGenException' iff exceeds maximum number of retries.
 nextUuid :: IO Text
-nextUuid = loop (1000 :: Int)
+nextUuid = loop (1000::Int)
   where
     loop 0 = E.throwIO MkUuidGenException
     loop n = maybe (threadDelay 250 >> loop (n - 1)) (pure . UUID.toText) =<< UUID.nextUUID

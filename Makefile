@@ -12,7 +12,7 @@ configure: cabal.project.local
 
 .PHONY: build-package
 build-package: cabal2nix
-	nix-build release.nix -A liquidator-redux
+	nix-build release.nix -A haskellPackagesLocal.liquidator-redux
 
 liquidator-redux/liquidator-redux.cabal: liquidator-redux/package.yml
 	( cd liquidator-redux && hpack package.yml )
