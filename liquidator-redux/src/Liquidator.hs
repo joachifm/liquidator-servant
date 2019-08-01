@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StrictData #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
@@ -59,8 +60,6 @@ import Web.FormUrlEncoded (FromForm, ToForm)
 import qualified Web.FormUrlEncoded as Form
 import Web.Cookie
 
-import Network.HTTP.Types.Method
-
 import Servant
 
 import Data.Swagger (Swagger)
@@ -73,8 +72,6 @@ import Servant.HTML.Lucid
 
 import Servant.Auth.Server
 
-import Network.Wai (Middleware)
-import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
 
@@ -82,6 +79,7 @@ import qualified Network.Wai.Middleware.ForceSSL as ForceSSL
 import qualified Network.Wai.Middleware.Gzip as Gzip
 
 import System.Log.FastLogger
+
 import System.Directory (renamePath)
 
 import IORef
@@ -576,7 +574,7 @@ postNewTransactionHandler
   -> CreateTransactionFormData
   -> IO (Headers '[ Header "Location" Text
                   ] NoContent)
-postNewTransactionHandler h (Authenticated sess) formData = do
+postNewTransactionHandler h (Authenticated _) formData = do
   _ <- addTransaction h $
     AddTransactionParam
       (createtransactionformSubject formData)
@@ -648,6 +646,8 @@ api = Proxy
 
 server :: Handle -> Server Api
 server = hoistServerWithContext api authContextProxy convert . handler
+
+-- TODO(joachifm) refactor appWith, withApp et al
 
 appWith :: Handle -> Application
 appWith h = VerifyCsrToken.verifyCsrToken $

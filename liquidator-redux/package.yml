@@ -18,6 +18,15 @@ ghc-options:
   -Wredundant-constraints
   -fhide-source-paths
   -Wno-unused-imports
+  -ddump-to-file
+  -ddump-simpl
+  -ddump-asm
+  -ddump-inlinings
+  -ddump-rule-firings
+  -ddump-rule-rewrites
+  -ddump-spec
+  -ddump-minimal-imports
+  -ddump-simpl-stats
 
 dependencies:
   - base
@@ -28,7 +37,6 @@ dependencies:
   - mtl
   - text
   - time
-  - unix
 
   - aeson
   - cookie

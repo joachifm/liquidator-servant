@@ -4,7 +4,7 @@ cabal-version: 2.4
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: f658c6783ff23aef399728dc46694bdbd0289a5c98db8aa904ecc3b3fcd2aebb
+-- hash: 7cea58d5b15a23496e0b62116612a2175c5680e790e980fb14ae36d83d52e7b3
 
 name:                liquidator-redux
 version:             0.1.0.0
@@ -24,10 +24,11 @@ library
       Util
       UuidGen
       Wai.Middleware.Hsts
+      Wai.Middleware.VerifyCsrToken
       Paths_liquidator_redux
   hs-source-dirs:
       src
-  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints -fhide-source-paths -Wno-unused-imports
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints -fhide-source-paths -Wno-unused-imports -ddump-to-file -ddump-simpl -ddump-asm -ddump-inlinings -ddump-rule-firings -ddump-rule-rewrites -ddump-spec -ddump-minimal-imports -ddump-simpl-stats
   build-depends:
       aeson
     , aeson-casing
@@ -57,7 +58,6 @@ library
     , swagger2
     , text
     , time
-    , unix
     , uuid
     , wai
     , wai-extra
@@ -76,11 +76,12 @@ executable liquidator-server
       Util
       UuidGen
       Wai.Middleware.Hsts
+      Wai.Middleware.VerifyCsrToken
       Paths_liquidator_redux
   hs-source-dirs:
       app/server
       src
-  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints -fhide-source-paths -Wno-unused-imports -threaded -rtsopts
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints -fhide-source-paths -Wno-unused-imports -ddump-to-file -ddump-simpl -ddump-asm -ddump-inlinings -ddump-rule-firings -ddump-rule-rewrites -ddump-spec -ddump-minimal-imports -ddump-simpl-stats -threaded -rtsopts
   build-depends:
       aeson
     , aeson-casing
@@ -110,7 +111,6 @@ executable liquidator-server
     , swagger2
     , text
     , time
-    , unix
     , uuid
     , wai
     , wai-extra
@@ -133,11 +133,12 @@ test-suite spec
       Util
       UuidGen
       Wai.Middleware.Hsts
+      Wai.Middleware.VerifyCsrToken
       Paths_liquidator_redux
   hs-source-dirs:
       test
       src
-  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints -fhide-source-paths -Wno-unused-imports -O0 -threaded
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints -fhide-source-paths -Wno-unused-imports -ddump-to-file -ddump-simpl -ddump-asm -ddump-inlinings -ddump-rule-firings -ddump-rule-rewrites -ddump-spec -ddump-minimal-imports -ddump-simpl-stats -O0 -threaded
   cpp-options: -DTEST
   build-tool-depends:
       hspec-discover:hspec-discover
@@ -172,7 +173,6 @@ test-suite spec
     , swagger2
     , text
     , time
-    , unix
     , uuid
     , wai
     , wai-extra
