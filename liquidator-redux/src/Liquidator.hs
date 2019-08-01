@@ -10,75 +10,41 @@
 
 module Liquidator where
 
-import GHC.Generics (Generic)
-
-import Control.Monad (join, forM_)
-import Control.Monad.Except (ExceptT(ExceptT))
-import qualified Control.Exception as E
-
 import Control.Lens.Operators
 import Control.Lens.TH
-
-import Data.Maybe (fromMaybe)
-
-import Data.Int (Int64)
-
-import Data.Text (Text)
-import qualified Data.Text.Encoding as Text
-
-import Data.Map (Map)
-import qualified Data.Map.Lazy as Map
-
-import Data.IORef
-  ( IORef
-  , atomicModifyIORef'
-  , newIORef
-  , readIORef
-  , writeIORef
-  )
-
-import Data.Time.Calendar (Day)
-
-{-
-import Data.Time.Clock
-  ( UTCTime
-  , getCurrentTime
-  )
-import Data.Time.Clock.System
-  ( SystemTime(..)
-  , getSystemTime
-  )
--}
-
-import System.Directory (renamePath)
-import System.Log.FastLogger
-
+import Control.Monad (join, forM_)
+import Control.Monad.Except (ExceptT(ExceptT))
 import Data.Aeson (FromJSON(..), ToJSON(..))
 import Data.Aeson.Casing (aesonPrefix, snakeCase)
-import qualified Data.Aeson as Aeson
-
-import Web.FormUrlEncoded (FromForm)
-import qualified Web.FormUrlEncoded as Form
-import Web.Cookie
-
-import Servant
-
+import Data.IORef
+import Data.Int (Int64)
+import Data.Map (Map)
+import Data.Maybe (fromMaybe)
+import Data.Text (Text)
+import Data.Time.Calendar (Day)
+import GHC.Generics (Generic)
+import IORef
 import Lucid (Html, toHtml)
 import Lucid.Html5
-import Servant.HTML.Lucid
-
+import Servant
 import Servant.Auth.Server
-
+import Servant.HTML.Lucid
+import System.Directory (renamePath)
+import System.Log.FastLogger
+import Util
+import Web.Cookie
+import Web.FormUrlEncoded (FromForm)
+import qualified Control.Exception as E
+import qualified Data.Aeson as Aeson
+import qualified Data.Map.Lazy as Map
+import qualified Data.Text.Encoding as Text
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
-
 import qualified Network.Wai.Middleware.ForceSSL as ForceSSL
 import qualified Network.Wai.Middleware.Gzip as Gzip
-
-import IORef
-import Util
 import qualified Wai.Middleware.Hsts as Hsts
 import qualified Wai.Middleware.VerifyCsrToken as VerifyCsrToken
+import qualified Web.FormUrlEncoded as Form
 
 ------------------------------------------------------------------------------
 
@@ -275,12 +241,17 @@ simplePage
 simplePage pageTitle pageBody = simplePage' pageTitle Nothing pageBody
 
 renderNav :: Html ()
-renderNav = nav_ $ ul_ $ do
-  li_ $ a_ [ href_ "/" ] (text_ "Home")
-  li_ $ a_ [ href_ "/login" ] (text_ "Login")
-  li_ $ a_ [ href_ "/logout" ] (text_ "Logout")
-  li_ $ a_ [ href_ "/list" ] (text_ "List")
-  li_ $ a_ [ href_ "/new" ] (text_ "New")
+renderNav = nav_ $ do
+  span_ $
+    a_ [ href_ "/" ] (text_ "Home") >> text_ "|"
+  span_ $
+    a_ [ href_ "/login" ] (text_ "Login") >> text_ "|"
+  span_ $
+    a_ [ href_ "/logout" ] (text_ "Logout") >> text_ "|"
+  span_ $
+    a_ [ href_ "/list" ] (text_ "List") >> text_ "|"
+  span_ $
+    a_ [ href_ "/new" ] (text_ "New")
 
 ------------------------------------------------------------------------------
 
@@ -376,7 +347,23 @@ renderTransactionsListPage sess txlist = simplePage "Transactions" $ do
     text_ ("The session id is : " <> showText (sessionId sess))
   ul_ $ do
     forM_ txlist $ \(i, tx) -> do
-      li_ (text_ (showText i <> ":" <> tx))
+      li_ $ do
+        a_ [ href_ ("/view/" <> showText i) ] $
+          text_ (showText i <> ":" <> tx)
+
+renderViewTransactionByIdPage
+  :: GenericId
+  -> Html ()
+renderViewTransactionByIdPage txid = simplePage "View" $ do
+  p_ $ do
+    text_ ("Viewing txid " <> showText txid)
+
+renderEditTransactionByIdPage
+  :: GenericId
+  -> Html ()
+renderEditTransactionByIdPage txid = simplePage "Edit" $ do
+  p_ $ do
+    text_ ("Editing txid " <> showText txid)
 
 ------------------------------------------------------------------------------
 
@@ -487,6 +474,20 @@ type WebApi
             (Headers '[ Header "Location" Text ]
                      NoContent)
 
+  -- /view
+  :<|> Auth '[Cookie] UserSession :>
+       "view" :>
+       Capture "id" GenericId :>
+       Get '[HTML]
+           (Html ())
+
+  -- /edit
+  :<|> Auth '[Cookie] UserSession :>
+       "edit" :>
+       Capture "id" GenericId :>
+       Get '[HTML]
+           (Html ())
+
 ------------------------------------------------------------------------------
 
 getIndexPageHandler
@@ -590,6 +591,26 @@ getTransactionsListPageHandler h (Authenticated sess)
 getTransactionsListPageHandler _ _
   = E.throwIO err401
 
+getViewTransactionByIdPageHandler
+  :: Handle
+  -> AuthResult UserSession
+  -> GenericId
+  -> IO (Html ())
+getViewTransactionByIdPageHandler h (Authenticated sess) txid
+  = pure $ renderViewTransactionByIdPage txid
+getViewTransactionByIdPageHandler _ _ _
+  = E.throwIO err401
+
+getEditTransactionByIdPageHandler
+  :: Handle
+  -> AuthResult UserSession
+  -> GenericId
+  -> IO (Html ())
+getEditTransactionByIdPageHandler h (Authenticated sess) txid
+  = pure $ renderEditTransactionByIdPage txid
+getEditTransactionByIdPageHandler _ _ _
+  = E.throwIO err401
+
 webHandler
   :: Handle
   -> ServerT WebApi IO
@@ -602,6 +623,8 @@ webHandler h
   :<|> getTransactionsListPageHandler h
   :<|> getNewTransactionPageHandler h
   :<|> postNewTransactionHandler h
+  :<|> getViewTransactionByIdPageHandler h
+  :<|> getEditTransactionByIdPageHandler h
 
 ------------------------------------------------------------------------------
 
