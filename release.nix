@@ -11,6 +11,8 @@ let
   inherit selfSrc;
 
   devTools = [
+    cachix
+    nix
     httpie
     httperf
   ];

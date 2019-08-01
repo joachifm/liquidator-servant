@@ -237,13 +237,6 @@ noContent
 noContent
   = (*> pure NoContent)
 
-redirect
-  :: Text
-  -> orig
-  -> IO (Headers '[Header "Location" Text] orig)
-redirect loc orig
-  = pure $ addHeader loc orig
-
 -- https://stackoverflow.com/a/54890919
 newtype Cookies' = Cookies' { unCookies :: Cookies }
 
