@@ -4,7 +4,7 @@ cabal-version: 2.4
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 063cc7e506ffb694a912ae26dd742c2be6eb2b4794c1cd1f94a48446b5f61020
+-- hash: c0cb37dcc65d3a985429542a8eec71ad41fc78b61defa096230879de956f4495
 
 name:                liquidator-redux
 version:             0.1.0.0
@@ -44,6 +44,7 @@ library
     , servant
     , servant-auth
     , servant-auth-server
+    , servant-elm
     , servant-lucid
     , servant-server
     , servant-swagger
@@ -89,6 +90,7 @@ executable liquidator-server
     , servant
     , servant-auth
     , servant-auth-server
+    , servant-elm
     , servant-lucid
     , servant-server
     , servant-swagger
@@ -143,6 +145,7 @@ test-suite spec
     , servant
     , servant-auth
     , servant-auth-server
+    , servant-elm
     , servant-lucid
     , servant-server
     , servant-swagger

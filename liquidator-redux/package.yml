@@ -46,6 +46,7 @@ dependencies:
   - ekg
   - fast-logger
   - optparse-applicative
+  - servant-elm
   - servant-swagger
   - swagger2
   - uuid

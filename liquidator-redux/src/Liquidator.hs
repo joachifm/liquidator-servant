@@ -3,18 +3,19 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StrictData #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 module Liquidator where
 
 import GHC.Generics (Generic)
 
-import Control.Monad (when)
+import Control.Monad (forM_, when)
 import Control.Monad.Except (ExceptT(ExceptT))
 import qualified Control.Exception as E
 
+import qualified Control.Lens as Lens
 import Control.Lens.Operators
 import Control.Lens.TH
 
@@ -27,12 +28,6 @@ import qualified Data.Text.Encoding as Text
 
 import Data.Map (Map)
 import qualified Data.Map.Lazy as Map
-
-import Data.Aeson (FromJSON(..), ToJSON(..))
-import Data.Aeson.Casing (aesonPrefix, snakeCase)
-import qualified Data.Aeson as Aeson
-
-import Web.FormUrlEncoded
 
 import Data.IORef
   ( IORef
@@ -50,14 +45,23 @@ import Data.Time.Clock.System
   , getSystemTime
   )
 
+import Data.Aeson (FromJSON(..), ToJSON(..))
+import Data.Aeson.Casing (aesonPrefix, snakeCase)
+import qualified Data.Aeson as Aeson
+
+import Web.FormUrlEncoded
+
 import Servant
+
+import Data.Swagger (Swagger)
+import qualified Data.Swagger as Swagger
+import Servant.Swagger
 
 import Lucid (Html, toHtml)
 import Lucid.Html5
 import Servant.HTML.Lucid
 
 import Servant.Auth.Server
---import Crypto.JOSE.JWK (JWK)
 
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
@@ -65,10 +69,9 @@ import qualified Network.Wai.Handler.WarpTLS as Warp
 import qualified Network.Wai.Middleware.ForceSSL as ForceSSL
 import qualified Network.Wai.Middleware.Gzip as Gzip
 
---import Options.Applicative
+import System.Log.FastLogger
 
 import IORef
---import Money
 import qualified Wai.Middleware.Hsts as Hsts
 
 ------------------------------------------------------------------------------
@@ -118,47 +121,53 @@ data UserSession = UserSession { sessionId :: GenericId }
 ------------------------------------------------------------------------------
 
 data Config = Config
-  { jwtKeyFile :: FilePath
-  , tlsCrtFile :: FilePath
-  , tlsKeyFile :: FilePath
+  { _jwtKeyFile :: FilePath
+  , _tlsCrtFile :: FilePath
+  , _tlsKeyFile :: FilePath
   }
   deriving (Show, Generic, FromJSON, ToJSON)
+
+makeLenses ''Config
 
 defaultConfig
   :: Config
 defaultConfig = Config
-  { jwtKeyFile = "server.jwk"
-  , tlsCrtFile = "server.crt"
-  , tlsKeyFile = "server.key"
+  { _jwtKeyFile = "server.jwk"
+  , _tlsCrtFile = "server.crt"
+  , _tlsKeyFile = "server.key"
   }
 
 data Handle = Handle
-  { jwtSettings :: JWTSettings
-  , cookieSettings :: CookieSettings
-  , nextId :: IORef GenericId
-  , cache :: IORef (Map GenericId Text)
-  , sessions :: IORef (Map GenericId UserSessionData)
-  , transactions :: IORef (Map GenericId Text)
+  { _config :: Config
+  , _jwtSettings :: JWTSettings
+  , _cookieSettings :: CookieSettings
+  , _logger :: LoggerSet
+
+  , _nextId :: IORef GenericId
+  , _sessions :: IORef (Map GenericId UserSessionData)
+  , _transactions :: IORef (Map GenericId Text)
   }
 
+makeLenses ''Handle
+
 newHandle :: IO Handle
-newHandle = Handle
-  -- TODO(joachifm) persist JWT key (readKey/writeKey)
-  <$> (defaultJWTSettings <$> getJwk)
-  <*> pure (defaultCookieSettings { cookieXsrfSetting = Just xsrfCookieSettings })
+newHandle = newHandleWith defaultConfig
+
+newHandleWith :: Config -> IO Handle
+newHandleWith cfg = Handle
+  <$> pure cfg
+  <*> (defaultJWTSettings <$> getJwk (cfg ^. jwtKeyFile))
+  -- TODO(joachifm) use js to inject xsrf setting on the client side?
+  <*> pure (defaultCookieSettings { cookieXsrfSetting = Nothing })
+  <*> newStdoutLoggerSet defaultBufSize
   <*> newIORef 1
   <*> newIORef mempty
   <*> newIORef mempty
-  <*> newIORef mempty
   where
-    xsrfCookieSettings = defaultXsrfCookieSettings { xsrfExcludeGet = True }
-
-    getJwk = readKey "server.jwk" `E.catch` \(_::E.IOException) -> do
-      writeKey "server.jwk"
-      readKey "server.jwk"
+    getJwk path = readKey path `E.catch` \(_::E.IOException) -> writeKey path >> readKey path
 
 getNextId :: Handle -> IO GenericId
-getNextId = postIncIORef . nextId
+getNextId = postIncIORef . _nextId
 
 ------------------------------------------------------------------------------
 
@@ -198,10 +207,11 @@ simplePage pageTitle pageBody = doctypehtml_ $ do
 
 renderNav :: Html ()
 renderNav = nav_ $ ul_ $ do
-  li_ $ a_ [ href_ "/" ]      (text_ "Home")
+  li_ $ a_ [ href_ "/" ] (text_ "Home")
   li_ $ a_ [ href_ "/login" ] (text_ "Login")
-  li_ $ a_ [ href_ "/list" ]  (text_ "List")
-  li_ $ a_ [ href_ "/new" ]   (text_ "New")
+  li_ $ a_ [ href_ "/logout" ] (text_ "Logout")
+  li_ $ a_ [ href_ "/list" ] (text_ "List")
+  li_ $ a_ [ href_ "/new" ] (text_ "New")
 
 ------------------------------------------------------------------------------
 
@@ -250,25 +260,49 @@ renderNewTransactionPage _ = simplePage "New" $ do
              , autofocus_
              , tabindex_ "1"
              ]
-      input_ [ name_ "amount"
-             , type_ "text"
+      input_ [ name_ "amount_pri"
+             , type_ "number"
              , placeholder_ "Amount"
+             , min_ "0"
+             , max_ "9999"
              , required_ "required"
              , tabindex_ "2"
              ]
+      input_ [ name_ "amount_sub"
+             , type_ "number"
+             , placeholder_ "Amount"
+             , min_ "0"
+             , max_ "9999"
+             , value_ "0"
+             , tabindex_ "3"
+             ]
     input_ [ type_ "submit"
            , value_ "Create"
-           , tabindex_ "3"
+           , tabindex_ "4"
            ]
 
 renderTransactionsListPage
   :: UserSession
+  -> [(GenericId, Text)]
   -> Html ()
-renderTransactionsListPage sess = simplePage "Transactions" $ do
+renderTransactionsListPage sess txlist = simplePage "Transactions" $ do
   p_ $ do
     text_ ("The session id is : " <> showText (sessionId sess))
+  ul_ $ do
+    forM_ txlist $ \(i, tx) -> do
+      li_ (text_ (showText i <> ":" <> tx))
 
 ------------------------------------------------------------------------------
+
+data CreateTransactionFormData = CreateTransactionFormData
+  { createtransactionformSubject :: Text
+  , createtransactionformAmountPri :: Int
+  , createtransactionformAmountSub :: Int
+  }
+  deriving (Generic, Show)
+
+instance FromForm CreateTransactionFormData where
+  fromForm = genericFromForm formOptions
 
 data LoginFormData = LoginFormData
   { loginformUsername :: Text
@@ -293,23 +327,72 @@ loginFormDataToBasicAuthData formData
 
 ------------------------------------------------------------------------------
 
+data AddTransactionParam = AddTransactionParam
+  { _transactionSubject :: Text
+  , _transactionAmount :: (Int, Int)
+  }
+  deriving (Eq, Show, Generic, FromJSON, ToJSON)
+
+makeLenses ''AddTransactionParam
+
+getAllTransactions
+  :: Handle
+  -> IO [(GenericId, Text)]
+getAllTransactions h = Map.toList <$> readIORef (h^.transactions)
+
+addTransaction
+  :: Handle
+  -> AddTransactionParam
+  -> IO GenericId
+addTransaction h param = do
+  theid <- getNextId h
+  atomicModifyIORef' (h^.transactions) $ \m ->
+    (Map.insert theid (param^.transactionSubject) m, theid)
+
+------------------------------------------------------------------------------
+
 type WebApi
   =    Get '[HTML] (Html ())
+
+  -- /login
   :<|> "login" :>
        Get '[HTML] (Html ())
+
   :<|> "login" :>
        ReqBody '[FormUrlEncoded] LoginFormData :>
-       Verb 'POST 301 '[PlainText] (Headers '[ Header "Location" Text
-                                               -- XSRF-TOKEN & JWT-COOKIE
-                                             , Header "Set-Cookie" SetCookie
-                                             , Header "Set-Cookie" SetCookie
-                                             ] NoContent)
+       Verb 'POST 301 '[PlainText]
+            (Headers '[ Header "Location" Text
+                        -- XSRF-TOKEN & JWT-COOKIE
+                      , Header "Set-Cookie" SetCookie
+                      , Header "Set-Cookie" SetCookie
+                      ] NoContent)
+
+  -- /logout
+  :<|> "logout" :>
+       Get '[HTML] (Html ())
+
+  :<|> "logout" :>
+       Verb 'POST 301 '[PlainText]
+            (Headers '[ Header "Location" Text
+                      , Header "Set-Cookie" SetCookie
+                      , Header "Set-Cookie" SetCookie
+                      ] NoContent)
+
+  -- /list
   :<|> Auth '[Cookie] UserSession :>
        "list" :>
        Get '[HTML] (Html ())
+
+  -- /new
   :<|> Auth '[Cookie] UserSession :>
        "new" :>
        Get '[HTML] (Html ())
+
+  :<|> Auth '[Cookie] UserSession :>
+       "new" :>
+       ReqBody '[FormUrlEncoded] CreateTransactionFormData :>
+       Verb 'POST 301 '[PlainText]
+            (Headers '[ Header "Location" Text ] NoContent)
 
 ------------------------------------------------------------------------------
 
@@ -334,7 +417,7 @@ postLoginHandler h rq = do
   if loginformUsername rq == "admin" && loginformPassword rq == "admin"
     then do
       let sess = UserSession 42
-      applyCookies <- acceptLogin (cookieSettings h) (jwtSettings h) sess
+      applyCookies <- acceptLogin (h^.cookieSettings) (h^.jwtSettings) sess
       case applyCookies of
         Just fn ->
           pure . addHeader "/"
@@ -345,21 +428,57 @@ postLoginHandler h rq = do
     else
       E.throwIO err401
 
+getLogoutPageHandler
+  :: Handle
+  -> IO (Html ())
+getLogoutPageHandler _ = pure . simplePage "Log out" $ do
+  form_ [ name_ "logout"
+        , action_ "/logout"
+        , method_ "post"
+        ] $ do
+    input_ [ type_ "submit", value_ "Log out" ]
+
+postLogoutHandler
+  :: Handle
+  -> IO (Headers '[ Header "Location" Text
+                  , Header "Set-Cookie" SetCookie
+                  , Header "Set-Cookie" SetCookie
+                  ] NoContent)
+postLogoutHandler h
+  = pure . addHeader "/"
+  . clearSession (h^.cookieSettings)
+  $ NoContent
+
 getNewTransactionPageHandler
   :: Handle
   -> AuthResult UserSession
   -> IO (Html ())
-getNewTransactionPageHandler h (Authenticated sess)
+getNewTransactionPageHandler _ (Authenticated sess)
   = pure $ renderNewTransactionPage sess
 getNewTransactionPageHandler _ _
   = E.throwIO err401
+
+postNewTransactionHandler
+  :: Handle
+  -> AuthResult UserSession
+  -> CreateTransactionFormData
+  -> IO (Headers '[ Header "Location" Text ] NoContent)
+postNewTransactionHandler h (Authenticated sess) formData = do
+  theid <- addTransaction h $
+    AddTransactionParam
+      (createtransactionformSubject formData)
+      ((createtransactionformAmountPri formData
+       ,createtransactionformAmountSub formData))
+  putStrLn ("Created txid: " <> show theid)
+  pure . addHeader "/" $ NoContent
+postNewTransactionHandler _ _ _ = E.throwIO err401
 
 getTransactionsListPageHandler
   :: Handle
   -> AuthResult UserSession
   -> IO (Html ())
-getTransactionsListPageHandler _ (Authenticated sess)
-  = pure $ renderTransactionsListPage sess
+getTransactionsListPageHandler h (Authenticated sess)
+  = renderTransactionsListPage sess <$> getAllTransactions h
 getTransactionsListPageHandler _ _
   = E.throwIO err401
 
@@ -370,8 +489,11 @@ webHandler h
   =    getIndexPageHandler h
   :<|> getLoginPageHandler h
   :<|> postLoginHandler h
+  :<|> getLogoutPageHandler h
+  :<|> postLogoutHandler h
   :<|> getTransactionsListPageHandler h
   :<|> getNewTransactionPageHandler h
+  :<|> postNewTransactionHandler h
 
 ------------------------------------------------------------------------------
 
@@ -403,8 +525,8 @@ authContextVal
   :: Handle
   -> Context '[CookieSettings, JWTSettings]
 authContextVal h
-  =  cookieSettings h
-  :. jwtSettings h
+  =  h^.cookieSettings
+  :. h^.jwtSettings
   :. EmptyContext
 
 api :: Proxy Api
@@ -419,11 +541,6 @@ app = do
   return $ serveWithContext api (authContextVal h) (server h)
 
 ----------------------------------------------------------------------------
-
-initConfig
-  :: IO ()
-initConfig = do
-  writeKey "server.jwk"
 
 run :: IO ()
 run
