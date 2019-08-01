@@ -31,6 +31,7 @@ dependencies:
   - unix
 
   - aeson
+  - cookie
   - http-api-data
   - jose
   - lucid
@@ -49,6 +50,8 @@ dependencies:
   - fast-logger
   - optparse-applicative
   - servant-elm
+  - servant-foreign
+  - servant-js
   - servant-swagger
   - swagger2
   - uuid

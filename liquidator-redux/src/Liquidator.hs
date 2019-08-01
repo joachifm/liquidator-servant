@@ -11,7 +11,7 @@ module Liquidator where
 
 import GHC.Generics (Generic)
 
-import Control.Monad (forM_, when)
+import Control.Monad (join, forM_, when)
 import Control.Monad.Except (ExceptT(ExceptT))
 import qualified Control.Exception as E
 
@@ -26,6 +26,7 @@ import Data.Int (Int64)
 import Data.ByteString (ByteString)
 import Data.Text (Text)
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text
 import qualified Data.Text.Encoding as Text
 import qualified Data.ByteString.Lazy as LB
 
@@ -56,6 +57,7 @@ import qualified Data.Aeson as Aeson
 
 import Web.FormUrlEncoded (FromForm, ToForm)
 import qualified Web.FormUrlEncoded as Form
+import Web.Cookie
 
 import Servant
 
@@ -85,6 +87,10 @@ import qualified Wai.Middleware.Hsts as Hsts
 
 showText :: (Show a) => a -> Text
 showText = Text.pack . show
+
+whenJust :: (Monad m) => Maybe a -> (a -> m ()) -> m ()
+whenJust (Just x) act = act x
+whenJust Nothing _    = return ()
 
 ------------------------------------------------------------------------------
 
@@ -165,12 +171,16 @@ newHandleWith cfg = Handle
   <$> pure cfg
   <*> (defaultJWTSettings <$> getJwk (cfg ^. jwtKeyFile))
   -- TODO(joachifm) use js to inject xsrf setting on the client side?
-  <*> pure (defaultCookieSettings { cookieXsrfSetting = Nothing })
+  <*> pure (defaultCookieSettings { cookieXsrfSetting = Just xsrfCookieSettings })
   <*> newStdoutLoggerSet defaultBufSize
   <*> newIORef 1
   <*> newIORef mempty
   <*> newIORef mempty
   where
+    xsrfCookieSettings = defaultXsrfCookieSettings
+      { xsrfExcludeGet = False
+      }
+
     getJwk path = readKey path `E.catch` \(_::E.IOException) -> writeKey path >> readKey path
 
 getNextId :: Handle -> IO GenericId
@@ -239,6 +249,13 @@ redirect
 redirect loc orig
   = pure $ addHeader loc orig
 
+-- https://stackoverflow.com/a/54890919
+newtype Cookies' = Cookies' { unCookies :: Cookies }
+
+instance FromHttpApiData Cookies' where
+  parseHeader = return . Cookies' . parseCookies
+  parseQueryParam = return . Cookies' . parseCookies . Text.encodeUtf8
+
 ------------------------------------------------------------------------------
 
 text_ :: Text -> Html ()
@@ -301,8 +318,9 @@ renderLoginPage = simplePage "Login" $ do
 
 renderNewTransactionPage
   :: UserSession
+  -> Maybe Text
   -> Html ()
-renderNewTransactionPage _ = simplePage "New" $ do
+renderNewTransactionPage _ xsrf = simplePage "New" $ do
   form_ [ name_ "new"
         , method_ "post"
         , action_ "/new" -- TODO(joachifm) use API link
@@ -338,6 +356,17 @@ renderNewTransactionPage _ = simplePage "New" $ do
              , value_ "2019-01-01"
              , tabindex_ "4"
              ]
+
+    -- Pass along value for X-XSRF-TOKEN header
+    whenJust xsrf $ \v -> do
+      input_ [ name_ "xsrf_token"
+             , type_ "text"
+             , hidden_ "hidden"
+             , readonly_ "readonly"
+             , required_ "required"
+             , value_ v
+             ]
+
     input_ [ type_ "submit"
            , value_ "Create"
            , tabindex_ "5"
@@ -361,6 +390,7 @@ data CreateTransactionFormData = CreateTransactionFormData
   , createtransactionformAmountPri :: Int
   , createtransactionformAmountSub :: Maybe Int
   , createtransactionformDay :: Day
+  , createtransactionformXsrfToken :: Text -- X-XSRF-TOKEN header value
   }
   deriving (Generic, Show)
 
@@ -449,14 +479,19 @@ type WebApi
 
   -- /new
   :<|> Auth '[Cookie] UserSession :>
+       Header "Cookie" Cookies' :>
        "new" :>
-       Get '[HTML] (Html ())
+       Get '[HTML]
+           (Headers '[ Header "X-XSRF-TOKEN" Text ]
+                    (Html ()))
 
   :<|> Auth '[Cookie] UserSession :>
        "new" :>
        ReqBody '[FormUrlEncoded] CreateTransactionFormData :>
        Verb 'POST 301 '[PlainText]
-            (Headers '[ Header "Location" Text ] NoContent)
+            (Headers '[ Header "Location" Text
+                      , Header "X-XSRF-TOKEN" Text
+                      ] NoContent)
 
 ------------------------------------------------------------------------------
 
@@ -516,25 +551,35 @@ postLogoutHandler h
 getNewTransactionPageHandler
   :: Handle
   -> AuthResult UserSession
-  -> IO (Html ())
-getNewTransactionPageHandler _ (Authenticated sess)
-  = pure $ renderNewTransactionPage sess
-getNewTransactionPageHandler _ _
+  -> Maybe Cookies'
+  -> IO (Headers '[Header "X-XSRF-TOKEN" Text] (Html ()))
+getNewTransactionPageHandler _ (Authenticated sess) mbCookies = do
+  let
+    -- TODO(joachifm) refactoring
+    mbXsrfToken = Text.decodeUtf8 <$> join (lookup "XSRF-TOKEN" . unCookies <$> mbCookies)
+  pure . maybe noHeader addHeader mbXsrfToken
+       $ renderNewTransactionPage sess mbXsrfToken
+getNewTransactionPageHandler _ _ _
   = E.throwIO err401
 
 postNewTransactionHandler
   :: Handle
   -> AuthResult UserSession
   -> CreateTransactionFormData
-  -> IO (Headers '[ Header "Location" Text ] NoContent)
+  -> IO (Headers '[ Header "Location" Text
+                  , Header "X-XSRF-TOKEN" Text
+                  ] NoContent)
 postNewTransactionHandler h (Authenticated sess) formData = do
+  Text.putStrLn ("X-XSRF-TOKEN: " <> createtransactionformXsrfToken formData)
   _ <- addTransaction h $
     AddTransactionParam
       (createtransactionformSubject formData)
       ((createtransactionformAmountPri formData
        ,fromMaybe (0::Int) (createtransactionformAmountSub formData)))
       (createtransactionformDay formData)
-  pure . addHeader "/list" $ NoContent
+  pure . addHeader "/list"
+       . addHeader (createtransactionformXsrfToken formData)
+       $ NoContent
 postNewTransactionHandler _ _ _ = E.throwIO err401
 
 getTransactionsListPageHandler
