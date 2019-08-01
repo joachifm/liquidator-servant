@@ -59,6 +59,8 @@ import Web.FormUrlEncoded (FromForm, ToForm)
 import qualified Web.FormUrlEncoded as Form
 import Web.Cookie
 
+import Network.HTTP.Types.Method
+
 import Servant
 
 import Data.Swagger (Swagger)
@@ -71,6 +73,8 @@ import Servant.HTML.Lucid
 
 import Servant.Auth.Server
 
+import Network.Wai (Middleware)
+import qualified Network.Wai as Wai
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Handler.WarpTLS as Warp
 
@@ -81,16 +85,9 @@ import System.Log.FastLogger
 import System.Directory (renamePath)
 
 import IORef
+import Util
 import qualified Wai.Middleware.Hsts as Hsts
-
-------------------------------------------------------------------------------
-
-showText :: (Show a) => a -> Text
-showText = Text.pack . show
-
-whenJust :: (Monad m) => Maybe a -> (a -> m ()) -> m ()
-whenJust (Just x) act = act x
-whenJust Nothing _    = return ()
+import qualified Wai.Middleware.VerifyCsrToken as VerifyCsrToken
 
 ------------------------------------------------------------------------------
 
@@ -170,16 +167,13 @@ newHandleWith :: Config -> IO Handle
 newHandleWith cfg = Handle
   <$> pure cfg
   <*> (defaultJWTSettings <$> getJwk (cfg ^. jwtKeyFile))
-  -- TODO(joachifm) use js to inject xsrf setting on the client side?
   <*> pure (defaultCookieSettings { cookieXsrfSetting = Just xsrfCookieSettings })
   <*> newStdoutLoggerSet defaultBufSize
   <*> newIORef 1
   <*> newIORef mempty
   <*> newIORef mempty
   where
-    xsrfCookieSettings = defaultXsrfCookieSettings
-      { xsrfExcludeGet = False
-      }
+    xsrfCookieSettings = defaultXsrfCookieSettings { xsrfExcludeGet = True }
 
     getJwk path = readKey path `E.catch` \(_::E.IOException) -> writeKey path >> readKey path
 
@@ -261,13 +255,16 @@ instance FromHttpApiData Cookies' where
 text_ :: Text -> Html ()
 text_ = toHtml
 
-simplePage
+simplePage'
   :: Text
+  -> Maybe Text
   -> Html ()
   -> Html ()
-simplePage pageTitle pageBody = doctypehtml_ $ do
+simplePage' pageTitle mbPageXsrfToken pageBody = doctypehtml_ $ do
   head_ $ do
     meta_ [ charset_ "UTF-8" ]
+    whenJust mbPageXsrfToken $ \pageXsrfToken ->
+      meta_ [ name_ "xsrf-token", value_ pageXsrfToken ]
     title_ pageTitle_
   body_ $ do
     renderNav
@@ -276,6 +273,12 @@ simplePage pageTitle pageBody = doctypehtml_ $ do
       pageBody
   where
     pageTitle_ = text_ pageTitle
+
+simplePage
+  :: Text
+  -> Html ()
+  -> Html ()
+simplePage pageTitle pageBody = simplePage' pageTitle Nothing pageBody
 
 renderNav :: Html ()
 renderNav = nav_ $ ul_ $ do
@@ -320,7 +323,7 @@ renderNewTransactionPage
   :: UserSession
   -> Maybe Text
   -> Html ()
-renderNewTransactionPage _ xsrf = simplePage "New" $ do
+renderNewTransactionPage _ mbXsrfToken = simplePage' "New" mbXsrfToken $ do
   form_ [ name_ "new"
         , method_ "post"
         , action_ "/new" -- TODO(joachifm) use API link
@@ -358,12 +361,10 @@ renderNewTransactionPage _ xsrf = simplePage "New" $ do
              ]
 
     -- Pass along value for X-XSRF-TOKEN header
-    whenJust xsrf $ \v -> do
+    whenJust mbXsrfToken $ \v -> do
       input_ [ name_ "xsrf_token"
              , type_ "text"
              , hidden_ "hidden"
-             , readonly_ "readonly"
-             , required_ "required"
              , value_ v
              ]
 
@@ -482,16 +483,14 @@ type WebApi
        Header "Cookie" Cookies' :>
        "new" :>
        Get '[HTML]
-           (Headers '[ Header "X-XSRF-TOKEN" Text ]
-                    (Html ()))
+           (Html ())
 
   :<|> Auth '[Cookie] UserSession :>
        "new" :>
        ReqBody '[FormUrlEncoded] CreateTransactionFormData :>
        Verb 'POST 301 '[PlainText]
-            (Headers '[ Header "Location" Text
-                      , Header "X-XSRF-TOKEN" Text
-                      ] NoContent)
+            (Headers '[ Header "Location" Text ]
+                     NoContent)
 
 ------------------------------------------------------------------------------
 
@@ -548,17 +547,26 @@ postLogoutHandler h
   . clearSession (h^.cookieSettings)
   $ NoContent
 
+lookupXsrfTokenText
+  :: Maybe XsrfCookieSettings
+  -> Cookies'
+  -> Maybe Text
+lookupXsrfTokenText Nothing _
+  = Nothing
+lookupXsrfTokenText (Just settings) cookies
+  = Text.decodeUtf8 <$> lookup (xsrfCookieName settings)
+                               (unCookies cookies)
+
 getNewTransactionPageHandler
   :: Handle
   -> AuthResult UserSession
   -> Maybe Cookies'
-  -> IO (Headers '[Header "X-XSRF-TOKEN" Text] (Html ()))
-getNewTransactionPageHandler _ (Authenticated sess) mbCookies = do
-  let
-    -- TODO(joachifm) refactoring
-    mbXsrfToken = Text.decodeUtf8 <$> join (lookup "XSRF-TOKEN" . unCookies <$> mbCookies)
-  pure . maybe noHeader addHeader mbXsrfToken
-       $ renderNewTransactionPage sess mbXsrfToken
+  -> IO (Html ())
+getNewTransactionPageHandler h (Authenticated sess) mbCookies = do
+  print (unCookies <$> mbCookies)
+  pure . renderNewTransactionPage sess
+       $ join (lookupXsrfTokenText (cookieXsrfSetting (h^.cookieSettings)) <$>
+                                   mbCookies)
 getNewTransactionPageHandler _ _ _
   = E.throwIO err401
 
@@ -567,10 +575,8 @@ postNewTransactionHandler
   -> AuthResult UserSession
   -> CreateTransactionFormData
   -> IO (Headers '[ Header "Location" Text
-                  , Header "X-XSRF-TOKEN" Text
                   ] NoContent)
 postNewTransactionHandler h (Authenticated sess) formData = do
-  Text.putStrLn ("X-XSRF-TOKEN: " <> createtransactionformXsrfToken formData)
   _ <- addTransaction h $
     AddTransactionParam
       (createtransactionformSubject formData)
@@ -578,7 +584,6 @@ postNewTransactionHandler h (Authenticated sess) formData = do
        ,fromMaybe (0::Int) (createtransactionformAmountSub formData)))
       (createtransactionformDay formData)
   pure . addHeader "/list"
-       . addHeader (createtransactionformXsrfToken formData)
        $ NoContent
 postNewTransactionHandler _ _ _ = E.throwIO err401
 
@@ -645,7 +650,8 @@ server :: Handle -> Server Api
 server = hoistServerWithContext api authContextProxy convert . handler
 
 appWith :: Handle -> Application
-appWith h = serveWithContext api (authContextVal h) (server h)
+appWith h = VerifyCsrToken.verifyCsrToken $
+  serveWithContext api (authContextVal h) (server h)
 
 app :: IO Application
 app = appWith <$> newHandle

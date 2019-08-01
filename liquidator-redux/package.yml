@@ -33,6 +33,7 @@ dependencies:
   - aeson
   - cookie
   - http-api-data
+  - http-types
   - jose
   - lucid
   - servant
@@ -60,8 +61,6 @@ library:
   source-dirs: src
   exposed-modules:
     - Liquidator
-    - Money
-    - Wai.Middleware.Hsts
 
 executables:
   liquidator-server:

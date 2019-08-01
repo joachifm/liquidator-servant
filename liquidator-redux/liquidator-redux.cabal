@@ -4,7 +4,7 @@ cabal-version: 2.4
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 6a8321c165c3c09f70a8e7e7b0b965449e1f8efe9b1951e416b848aab7c6ad42
+-- hash: f658c6783ff23aef399728dc46694bdbd0289a5c98db8aa904ecc3b3fcd2aebb
 
 name:                liquidator-redux
 version:             0.1.0.0
@@ -16,13 +16,14 @@ build-type:          Simple
 library
   exposed-modules:
       Liquidator
-      Money
-      Wai.Middleware.Hsts
   other-modules:
       DesignDoc
       IdSupply
       IORef
+      Money
+      Util
       UuidGen
+      Wai.Middleware.Hsts
       Paths_liquidator_redux
   hs-source-dirs:
       src
@@ -38,6 +39,7 @@ library
     , ekg
     , fast-logger
     , http-api-data
+    , http-types
     , jose
     , lens
     , lucid
@@ -71,6 +73,7 @@ executable liquidator-server
       IORef
       Liquidator
       Money
+      Util
       UuidGen
       Wai.Middleware.Hsts
       Paths_liquidator_redux
@@ -89,6 +92,7 @@ executable liquidator-server
     , ekg
     , fast-logger
     , http-api-data
+    , http-types
     , jose
     , lens
     , lucid
@@ -126,6 +130,7 @@ test-suite spec
       IORef
       Liquidator
       Money
+      Util
       UuidGen
       Wai.Middleware.Hsts
       Paths_liquidator_redux
@@ -149,6 +154,7 @@ test-suite spec
     , fast-logger
     , hspec
     , http-api-data
+    , http-types
     , jose
     , lens
     , lucid
