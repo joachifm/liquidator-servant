@@ -19,12 +19,15 @@ import qualified Control.Lens as Lens
 import Control.Lens.Operators
 import Control.Lens.TH
 
+import Data.Maybe (fromMaybe)
+
 import Data.Int (Int64)
 
 import Data.ByteString (ByteString)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
+import qualified Data.ByteString.Lazy as LB
 
 import Data.Map (Map)
 import qualified Data.Map.Lazy as Map
@@ -34,8 +37,10 @@ import Data.IORef
   , atomicModifyIORef'
   , newIORef
   , readIORef
+  , writeIORef
   )
 
+import Data.Time.Calendar (Day)
 import Data.Time.Clock
   ( UTCTime
   , getCurrentTime
@@ -49,7 +54,8 @@ import Data.Aeson (FromJSON(..), ToJSON(..))
 import Data.Aeson.Casing (aesonPrefix, snakeCase)
 import qualified Data.Aeson as Aeson
 
-import Web.FormUrlEncoded
+import Web.FormUrlEncoded (FromForm, ToForm)
+import qualified Web.FormUrlEncoded as Form
 
 import Servant
 
@@ -70,6 +76,7 @@ import qualified Network.Wai.Middleware.ForceSSL as ForceSSL
 import qualified Network.Wai.Middleware.Gzip as Gzip
 
 import System.Log.FastLogger
+import System.Directory (renamePath)
 
 import IORef
 import qualified Wai.Middleware.Hsts as Hsts
@@ -88,9 +95,9 @@ type GenericId = Int64
 aesonOptions :: Aeson.Options
 aesonOptions = aesonPrefix snakeCase
 
-formOptions :: FormOptions
-formOptions = defaultFormOptions
-  { fieldLabelModifier = Aeson.fieldLabelModifier aesonOptions
+formOptions :: Form.FormOptions
+formOptions = Form.defaultFormOptions
+  { Form.fieldLabelModifier = Aeson.fieldLabelModifier aesonOptions
   }
 
 ------------------------------------------------------------------------------
@@ -168,6 +175,54 @@ newHandleWith cfg = Handle
 
 getNextId :: Handle -> IO GenericId
 getNextId = postIncIORef . _nextId
+
+data SavedState = SavedState
+  { savedstateNextId :: GenericId
+  , savedstateTransactions :: Map GenericId Text
+  }
+  deriving (Generic)
+
+instance FromJSON SavedState where
+  parseJSON = Aeson.genericParseJSON aesonOptions
+
+instance ToJSON SavedState where
+  toJSON = Aeson.genericToJSON aesonOptions
+  toEncoding = Aeson.genericToEncoding aesonOptions
+
+saveHandleState
+  :: Handle
+  -> IO SavedState
+saveHandleState h = SavedState
+  <$> readIORef (h^.nextId)
+  <*> readIORef (h^.transactions)
+
+restoreHandleState
+  :: Handle
+  -> SavedState
+  -> IO ()
+restoreHandleState h s = do
+  writeIORef (h^.nextId) (savedstateNextId s)
+  writeIORef (h^.transactions) (savedstateTransactions s)
+
+dumpState
+  :: Handle
+  -> FilePath
+  -> IO ()
+dumpState h outFile = do
+  let
+    tmpFile = outFile <> ".tmp"
+  Aeson.encodeFile tmpFile =<< saveHandleState h
+  renamePath tmpFile outFile
+
+loadState
+  :: Handle
+  -> FilePath
+  -> IO ()
+loadState h inFile = do
+  s <- Aeson.decodeFileStrict' inFile `E.catch` \(_::E.IOException) -> return Nothing
+  case s of
+    Just v  -> restoreHandleState h v
+    Nothing -> return ()
 
 ------------------------------------------------------------------------------
 
@@ -257,12 +312,13 @@ renderNewTransactionPage _ = simplePage "New" $ do
              , type_ "text"
              , placeholder_ "Subject"
              , required_ "required"
+             , spellcheck_ "true"
              , autofocus_
              , tabindex_ "1"
              ]
       input_ [ name_ "amount_pri"
              , type_ "number"
-             , placeholder_ "Amount"
+             , placeholder_ "0"
              , min_ "0"
              , max_ "9999"
              , required_ "required"
@@ -270,15 +326,21 @@ renderNewTransactionPage _ = simplePage "New" $ do
              ]
       input_ [ name_ "amount_sub"
              , type_ "number"
-             , placeholder_ "Amount"
+             , placeholder_ "0"
              , min_ "0"
-             , max_ "9999"
+             , max_ "99"
              , value_ "0"
              , tabindex_ "3"
              ]
+      input_ [ name_ "day"
+             , type_ "date"
+             , required_ "required"
+             , value_ "2019-01-01"
+             , tabindex_ "4"
+             ]
     input_ [ type_ "submit"
            , value_ "Create"
-           , tabindex_ "4"
+           , tabindex_ "5"
            ]
 
 renderTransactionsListPage
@@ -297,12 +359,13 @@ renderTransactionsListPage sess txlist = simplePage "Transactions" $ do
 data CreateTransactionFormData = CreateTransactionFormData
   { createtransactionformSubject :: Text
   , createtransactionformAmountPri :: Int
-  , createtransactionformAmountSub :: Int
+  , createtransactionformAmountSub :: Maybe Int
+  , createtransactionformDay :: Day
   }
   deriving (Generic, Show)
 
 instance FromForm CreateTransactionFormData where
-  fromForm = genericFromForm formOptions
+  fromForm = Form.genericFromForm formOptions
 
 data LoginFormData = LoginFormData
   { loginformUsername :: Text
@@ -314,7 +377,7 @@ instance Show LoginFormData where
   show _ = "LoginFormData { loginformUsername = \"<hidden>\", loginformPassword = \"<hidden>\" }"
 
 instance FromForm LoginFormData where
-  fromForm = genericFromForm formOptions
+  fromForm = Form.genericFromForm formOptions
 
 loginFormDataToBasicAuthData
   :: LoginFormData
@@ -330,6 +393,7 @@ loginFormDataToBasicAuthData formData
 data AddTransactionParam = AddTransactionParam
   { _transactionSubject :: Text
   , _transactionAmount :: (Int, Int)
+  , _transactionDay :: Day
   }
   deriving (Eq, Show, Generic, FromJSON, ToJSON)
 
@@ -464,13 +528,13 @@ postNewTransactionHandler
   -> CreateTransactionFormData
   -> IO (Headers '[ Header "Location" Text ] NoContent)
 postNewTransactionHandler h (Authenticated sess) formData = do
-  theid <- addTransaction h $
+  _ <- addTransaction h $
     AddTransactionParam
       (createtransactionformSubject formData)
       ((createtransactionformAmountPri formData
-       ,createtransactionformAmountSub formData))
-  putStrLn ("Created txid: " <> show theid)
-  pure . addHeader "/" $ NoContent
+       ,fromMaybe (0::Int) (createtransactionformAmountSub formData)))
+      (createtransactionformDay formData)
+  pure . addHeader "/list" $ NoContent
 postNewTransactionHandler _ _ _ = E.throwIO err401
 
 getTransactionsListPageHandler
@@ -535,20 +599,31 @@ api = Proxy
 server :: Handle -> Server Api
 server = hoistServerWithContext api authContextProxy convert . handler
 
+appWith :: Handle -> Application
+appWith h = serveWithContext api (authContextVal h) (server h)
+
 app :: IO Application
-app = do
-  h <- newHandle
-  return $ serveWithContext api (authContextVal h) (server h)
+app = appWith <$> newHandle
+
+withApp
+  :: (Application -> IO a)
+  -> IO a
+withApp act = E.bracket
+  (newHandle >>= \h -> loadState h "_liquidator.state" >> return h)
+  (\h -> dumpState h "_liquidator.state")
+  (\h -> act $ appWith h)
 
 ----------------------------------------------------------------------------
 
 run :: IO ()
-run
+run = withApp runWith
+
+runWith :: Application -> IO ()
+runWith
   = Warp.runTLS tlsSettings warpSettings
   . Gzip.gzip Gzip.def
   . ForceSSL.forceSSL
   . Hsts.hsts
-  =<< app
 
 tlsSettings :: Warp.TLSSettings
 tlsSettings = (Warp.tlsSettings "site.crt" "site.key")

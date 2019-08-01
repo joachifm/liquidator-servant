@@ -4,7 +4,7 @@ cabal-version: 2.4
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c0cb37dcc65d3a985429542a8eec71ad41fc78b61defa096230879de956f4495
+-- hash: 88ce0fa8b918278d7a6ff9322156f81c5a3e141109ecd80641c7c9add73e8b02
 
 name:                liquidator-redux
 version:             0.1.0.0
@@ -33,6 +33,7 @@ library
     , base
     , bytestring
     , containers
+    , directory
     , ekg
     , fast-logger
     , http-api-data
@@ -51,6 +52,7 @@ library
     , swagger2
     , text
     , time
+    , unix
     , uuid
     , wai
     , wai-extra
@@ -79,6 +81,7 @@ executable liquidator-server
     , base
     , bytestring
     , containers
+    , directory
     , ekg
     , fast-logger
     , http-api-data
@@ -97,6 +100,7 @@ executable liquidator-server
     , swagger2
     , text
     , time
+    , unix
     , uuid
     , wai
     , wai-extra
@@ -133,6 +137,7 @@ test-suite spec
     , base
     , bytestring
     , containers
+    , directory
     , ekg
     , fast-logger
     , hspec
@@ -152,6 +157,7 @@ test-suite spec
     , swagger2
     , text
     , time
+    , unix
     , uuid
     , wai
     , wai-extra

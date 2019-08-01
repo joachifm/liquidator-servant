@@ -23,10 +23,12 @@ dependencies:
   - base
   - bytestring
   - containers
+  - directory
   - lens
   - mtl
   - text
   - time
+  - unix
 
   - aeson
   - http-api-data
