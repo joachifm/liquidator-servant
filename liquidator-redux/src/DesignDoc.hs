@@ -10,7 +10,7 @@ module DesignDoc
 -- $architecture
 -- = General component architecture
 --
--- All components follow the @Handle@ pattern.  A single 'Handle' carries all
+-- All components follow the @Handle@ pattern.  A single @Handle@ carries all
 -- state, and all operations pertaining to the outermost layer of the
 -- application occur in 'IO'.
 --

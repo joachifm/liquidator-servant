@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -10,8 +11,13 @@ Module: Money
 module Money
   (
     -- * Types
-    Money
-  , MoneyAmount
+    MoneyAmount
+
+#ifndef TEST
+  , Money
+#else
+  , Money(..)
+#endif
 
     -- * Conversion
   , moneyFromAmount
@@ -22,13 +28,14 @@ module Money
   , parseMoney
   ) where
 
+import GHC.Generics (Generic)
+
 import Data.Word (Word32)
 
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Read as Text
 
-import GHC.Generics (Generic)
 import Data.Aeson (FromJSON, ToJSON)
 
 -- | Underlying integer type used to represent money amounts.  Fixed-width
@@ -38,12 +45,22 @@ type MoneyAmount = Word32
 -- | A representation of an amount of money in a currency, relative to unit
 -- (e.g., 100 for two decimals).
 newtype Money = MkMoney { moneyAmount :: MoneyAmount }
-  -- TODO(joachifm) derive Show only for debug/devel builds (?)
-  deriving (Eq, Read, Show, Generic, FromJSON, ToJSON)
+  deriving
+    ( Eq, Ord, Generic, FromJSON, ToJSON
+#ifdef TEST
+    , Show, Read
+#endif
+    )
 
 -- | A 'Money' smart constructor.
-moneyFromAmount :: MoneyAmount -> Money
-moneyFromAmount = MkMoney
+--
+-- > moneyFromAmount 1 25
+-- MkMoney 125
+moneyFromAmount
+  :: MoneyAmount
+  -> MoneyAmount
+  -> Money
+moneyFromAmount a b = MkMoney (a * 100 + b)
 
 -- | A one-way conversion from 'Money' to a real value.
 moneyToReal :: Money -> Float
@@ -55,9 +72,11 @@ moneyToReal = (/ 100) . (fromIntegral :: MoneyAmount -> Float) . moneyAmount
 -- "0.10"
 -- >>> ppMoney (MkMoney 100)
 -- "1.0"
-ppMoney :: Money -> Text
 ppMoney
-  = (\(a, b) -> Text.pack (show a) <> "." <> Text.pack (show b))
+  :: Money
+  -> Text
+ppMoney
+  = (\(a, b) -> Text.pack (show a <> "." <> show b))
   . (`quotRem` 100) . moneyAmount
 
 -- | Read a textual representation of a money amount.
@@ -81,4 +100,4 @@ parseMoney s = case Text.break (== '.') s of
   (a, b) -> do
     (hd, _) <- Text.decimal a
     (tl, _) <- Text.decimal (Text.drop 1 b)
-    return $! MkMoney (hd * 100 + tl)
+    return $! moneyFromAmount hd tl

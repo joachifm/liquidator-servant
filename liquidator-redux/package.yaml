@@ -35,13 +35,15 @@ dependencies:
   - time
 
   - aeson
+  - aeson-casing
   - cookie
+  - fast-logger
   - http-api-data
   - http-types
   - jose
   - lucid
+  - optparse-applicative
   - servant
-  - servant-auth
   - servant-auth-server
   - servant-lucid
   - servant-server
@@ -50,16 +52,9 @@ dependencies:
   - warp
   - warp-tls
 
-  - aeson-casing
   - digestive-functors
   - ekg
-  - fast-logger
-  - miso
-  - optparse-applicative
-  - scotty
   - servant-elm
-  - servant-foreign
-  - servant-js
   - servant-swagger
   - swagger2
   - uuid
@@ -86,11 +81,14 @@ tests:
       - src
 
     cpp-options: -DTEST
+
     ghc-options: -O0 -threaded
 
     dependencies:
-      - hspec
       - QuickCheck
+      - hspec
+      - quickcheck-instances
+      - servant-quickcheck
 
     build-tools:
       - hspec-discover
