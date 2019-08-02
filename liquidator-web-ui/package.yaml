@@ -1,0 +1,19 @@
+verbatim:
+  cabal-version: 2.4
+
+name: liquidator-web-ui
+version: 0.1.0.0
+
+license: 'AGPL-3.0-or-later'
+author: Joachim Fasting
+maintainer: joachifm@fastmail.fm
+
+dependencies:
+  - base
+  - miso
+
+executables:
+  liquidator-web-ui:
+    main: Main.hs
+    ghcjs-options: -dedupe
+    source-dirs: app
