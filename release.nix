@@ -13,8 +13,9 @@ let
   devTools = [
     cachix
     nix
-    httpie
+
     httperf
+    httpie
   ];
 
   shellTools = [
@@ -27,13 +28,14 @@ let
 
   haskellPackagesLocal = haskellPackages.override {
     overrides = self: super: {
-      liquidator-redux = self.callPackage ./liquidator-redux-package.nix {};
+
+      liquidator-redux = self.callCabal2nix "liquidator-redux" ./liquidator-redux {};
+
     };
   };
 
   hsDevEnv = haskellPackagesLocal.ghcWithPackages (hsPkgs: with hsPkgs; [
     cabal-install
-    cabal2nix
     hpack
 
     ghcid

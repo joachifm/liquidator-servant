@@ -357,6 +357,9 @@ renderViewTransactionByIdPage
 renderViewTransactionByIdPage txid = simplePage "View" $ do
   p_ $ do
     text_ ("Viewing txid " <> showText txid)
+  p_ $ do
+    a_ [ href_ ("/edit/" <> showText txid) ] $
+      text_ "Edit"
 
 renderEditTransactionByIdPage
   :: GenericId
@@ -364,8 +367,51 @@ renderEditTransactionByIdPage
 renderEditTransactionByIdPage txid = simplePage "Edit" $ do
   p_ $ do
     text_ ("Editing txid " <> showText txid)
+  div_ $ do
+    form_ [ name_ "edit"
+          , action_ "/edit"
+          , method_ "post"
+          ] $ do
+      -- TODO(joachifm) xsrf token hidden field
+      section_ $ do
+        input_ [ name_ "subject"
+               , type_ "text"
+               , value_ "Subject"
+               , required_ "required"
+               , autofocus_
+               , tabindex_ "1"
+               ]
+
+        input_ [ name_ "txid"
+               , type_ "number"
+               , value_ (showText txid)
+               , hidden_ "hidden"
+               ]
+
+      input_ [ name_ "xsrf_token"
+             , type_ "text"
+             , value_ "DEADBEEF"
+             , hidden_ "hidden"
+             ]
+
+      input_ [ type_ "submit"
+             , value_ "Apply changes"
+             , tabindex_ "1"
+             ]
 
 ------------------------------------------------------------------------------
+
+data EditTransactionFormData = EditTransactionFormData
+  { edittransactionformSubject :: Maybe Text
+  , edittransactionformAmountPri :: Maybe Int
+  , edittransactionformAmountSub :: Maybe Int
+  , edittransactionformDay :: Maybe Day
+  , edittransactionformXsrfToken :: Text -- X-XSRF-TOKEN header value
+  }
+  deriving (Generic, Show)
+
+instance FromForm EditTransactionFormData where
+  fromForm = Form.genericFromForm formOptions
 
 data CreateTransactionFormData = CreateTransactionFormData
   { createtransactionformSubject :: Text
@@ -488,12 +534,35 @@ type WebApi
        Get '[HTML]
            (Html ())
 
+  :<|> Auth '[Cookie] UserSession :>
+       "edit" :>
+       ReqBody '[FormUrlEncoded] EditTransactionFormData :>
+       Verb 'POST 301 '[PlainText]
+            (Headers '[ Header "Location" Text ]
+                     NoContent)
+
 ------------------------------------------------------------------------------
+
+lookupXsrfTokenText
+  :: Maybe XsrfCookieSettings
+  -> Cookies'
+  -> Maybe Text
+lookupXsrfTokenText Nothing _
+  = Nothing
+lookupXsrfTokenText (Just settings) cookies
+  = Text.decodeUtf8 <$> lookup (xsrfCookieName settings)
+                               (unCookies cookies)
+
+------------------------------------------------------------------------------
+
+-- /
 
 getIndexPageHandler
   :: Handle
   -> IO (Html ())
 getIndexPageHandler _ = pure $ renderIndexPage
+
+-- /login
 
 getLoginPageHandler
   :: Handle
@@ -522,6 +591,8 @@ postLoginHandler h rq = do
     else
       E.throwIO err401
 
+-- /logout
+
 getLogoutPageHandler
   :: Handle
   -> IO (Html ())
@@ -543,15 +614,7 @@ postLogoutHandler h
   . clearSession (h^.cookieSettings)
   $ NoContent
 
-lookupXsrfTokenText
-  :: Maybe XsrfCookieSettings
-  -> Cookies'
-  -> Maybe Text
-lookupXsrfTokenText Nothing _
-  = Nothing
-lookupXsrfTokenText (Just settings) cookies
-  = Text.decodeUtf8 <$> lookup (xsrfCookieName settings)
-                               (unCookies cookies)
+-- /new
 
 getNewTransactionPageHandler
   :: Handle
@@ -582,6 +645,8 @@ postNewTransactionHandler h (Authenticated _) formData = do
        $ NoContent
 postNewTransactionHandler _ _ _ = E.throwIO err401
 
+-- /list
+
 getTransactionsListPageHandler
   :: Handle
   -> AuthResult UserSession
@@ -590,6 +655,8 @@ getTransactionsListPageHandler h (Authenticated sess)
   = renderTransactionsListPage sess <$> getAllTransactions h
 getTransactionsListPageHandler _ _
   = E.throwIO err401
+
+-- /view/:id
 
 getViewTransactionByIdPageHandler
   :: Handle
@@ -601,6 +668,8 @@ getViewTransactionByIdPageHandler h (Authenticated sess) txid
 getViewTransactionByIdPageHandler _ _ _
   = E.throwIO err401
 
+-- /edit/:id
+
 getEditTransactionByIdPageHandler
   :: Handle
   -> AuthResult UserSession
@@ -610,6 +679,19 @@ getEditTransactionByIdPageHandler h (Authenticated sess) txid
   = pure $ renderEditTransactionByIdPage txid
 getEditTransactionByIdPageHandler _ _ _
   = E.throwIO err401
+
+postEditTransactionHandler
+  :: Handle
+  -> AuthResult UserSession
+  -> EditTransactionFormData
+  -> IO (Headers '[ Header "Location" Text
+                  ] NoContent)
+postEditTransactionHandler h (Authenticated _) formData = do
+  pure . addHeader "/list"
+       $ NoContent
+postEditTransactionHandler _ _ _ = E.throwIO err401
+
+------------------------------------------------------------------------
 
 webHandler
   :: Handle
@@ -625,6 +707,7 @@ webHandler h
   :<|> postNewTransactionHandler h
   :<|> getViewTransactionByIdPageHandler h
   :<|> getEditTransactionByIdPageHandler h
+  :<|> postEditTransactionHandler h
 
 ------------------------------------------------------------------------------
 

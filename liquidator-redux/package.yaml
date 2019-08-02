@@ -17,10 +17,10 @@ ghc-options:
   -Wpartial-fields
   -Wredundant-constraints
   -fhide-source-paths
-  -Wall-missed-specialisations
   -Wno-unused-imports
   -ddump-to-file
   -ddump-simpl
+  -Wall-missed-specialisations
   -fspecialise-aggressively
   -fexpose-all-unfoldings
 
@@ -51,9 +51,12 @@ dependencies:
   - warp-tls
 
   - aeson-casing
+  - digestive-functors
   - ekg
   - fast-logger
+  - miso
   - optparse-applicative
+  - scotty
   - servant-elm
   - servant-foreign
   - servant-js
