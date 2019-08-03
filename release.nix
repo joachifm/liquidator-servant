@@ -46,7 +46,9 @@ let
     hpack
 
     ghcid
-    hlint
+    # hasktags
+    # hindent
+    # hlint
 
     doctest
     hspec-discover

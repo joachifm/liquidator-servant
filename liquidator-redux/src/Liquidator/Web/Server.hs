@@ -165,9 +165,8 @@ getBalanceByDate
   -> Day
   -> IO Money
 getBalanceByDate h day
-  = uncurry moneyFromAmount
-  . sumit . map (moneyToAmounts . transactionAmount . snd)
-  <$> getFilteredTransactions h (\tx -> transactionDay tx <= day)
+  =   foldl' (+) 0 . map (transactionAmount . snd)
+  <$> getFilteredTransactions h ((<= day) . transactionDay)
 
 sumit :: [(MoneyAmount, MoneyAmount)] -> (MoneyAmount, MoneyAmount)
 sumit = foldl' (\(za, zb) (a, b) -> (za + a, zb + b)) (0, 0)
