@@ -21,6 +21,7 @@ module Money
 
     -- * Conversion
   , moneyFromAmount
+  , moneyToAmounts
   , moneyToReal
 
     -- * Pretty-printing and parsing
@@ -61,6 +62,11 @@ moneyFromAmount
   -> MoneyAmount
   -> Money
 moneyFromAmount a b = MkMoney (a * 100 + b)
+
+moneyToAmounts
+  :: Money
+  -> (MoneyAmount, MoneyAmount)
+moneyToAmounts = (`quotRem` 100) . moneyAmount
 
 -- | A one-way conversion from 'Money' to a real value.
 moneyToReal :: Money -> Float

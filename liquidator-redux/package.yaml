@@ -25,6 +25,7 @@ ghc-options:
   -fexpose-all-unfoldings
 
 dependencies:
+  - async
   - base
   - bytestring
   - containers
@@ -54,6 +55,7 @@ dependencies:
 
   - digestive-functors
   - ekg
+  - scotty
   - servant-elm
   - servant-swagger
   - swagger2

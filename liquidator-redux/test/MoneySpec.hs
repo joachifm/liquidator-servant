@@ -16,6 +16,13 @@ spec = do
     it "converts a Money value to a float" $ do
       moneyToReal (moneyFromAmount 1 25) == 1.25
 
+  describe "moneyToAmounts" $ do
+    it "converts a Money value back to pairs" $ do
+      moneyToAmounts (moneyFromAmount 1 25) == (1, 25)
+
+    prop "is the inverse of moneyFromAmount" $ \(x::Money) ->
+      uncurry moneyFromAmount (moneyToAmounts x) == x
+
   describe "ppMoney" $ do
     it "pretty-prints a Money value" $ do
       ppMoney (moneyFromAmount 1 25) == "1.25"

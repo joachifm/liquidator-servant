@@ -1,11 +1,9 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StrictData #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 
@@ -13,38 +11,26 @@ module Liquidator where
 
 import Imports
 
-import Control.Lens.Operators
-import Control.Lens.TH
 import Control.Monad.Except (ExceptT(ExceptT))
 import Data.Aeson (FromJSON(..), ToJSON(..))
 import Data.Aeson.Casing (aesonPrefix, snakeCase)
 import Data.IORef
 import Data.Maybe (fromMaybe)
 import Data.Time.Calendar (Day)
-import Lucid (Html, toHtml)
-import Lucid.Html5
 import Servant
-import Servant.Auth.Server
 import Servant.HTML.Lucid
 import System.Directory (renamePath)
-import System.Log.FastLogger
-import Web.Cookie
 import Web.FormUrlEncoded (FromForm)
 import qualified Control.Exception as E
 import qualified Data.Aeson as Aeson
 import qualified Data.Map.Lazy as Map
-import qualified Data.Text.Encoding as Text
 import qualified Network.Wai.Handler.Warp as Warp
-import qualified Network.Wai.Handler.WarpTLS as Warp
-import qualified Network.Wai.Middleware.ForceSSL as ForceSSL
-import qualified Network.Wai.Middleware.Gzip as Gzip
 import qualified Web.FormUrlEncoded as Form
 
 import IORef
 import Money
 import Util
-import qualified Wai.Middleware.Hsts as Hsts
-import qualified Wai.Middleware.VerifyCsrToken as VerifyCsrToken
+import Html
 
 ------------------------------------------------------------------------------
 
@@ -66,151 +52,32 @@ data Transaction = Transaction
   { transactionSubject :: Text
   , transactionAmount :: Money
   , transactionDay :: Day
+  , transactionNotes :: [Text]
   }
-  deriving
-    ( Generic
-    , FromJSON
-    , ToJSON
-#ifdef TEST
-    , Show
-#endif
-    )
-
-data Role
-  = RoleAdmin
-  | RoleOwner
-  | RoleUser
-  deriving
-    ( Eq
-    , Enum
-    , Generic
-    , FromJSON
-    , ToJSON
-    , FromJWT
-    , ToJWT
-#ifdef TEST
-    , Show
-#endif
-    )
-
-makePrisms ''Role
-
-data UserSession = UserSession { sessionId :: GenericId }
-  deriving (Eq, Generic, FromJSON, ToJSON, FromJWT, ToJWT)
+  deriving (Eq, Generic, FromJSON, ToJSON)
 
 ------------------------------------------------------------------------------
 
-data Config = Config
-  { _jwtKeyFile :: FilePath
-  , _tlsCrtFile :: FilePath
-  , _tlsKeyFile :: FilePath
-  }
-  deriving
-    ( Generic
-    , FromJSON
-    , ToJSON
-#ifdef TEST
-    , Show
-#endif
-    )
-
-makeLenses ''Config
-
-defaultConfig
-  :: Config
-defaultConfig = Config
-  { _jwtKeyFile = "server.jwk"
-  , _tlsCrtFile = "server.crt"
-  , _tlsKeyFile = "server.key"
-  }
-
 data Handle = Handle
-  { _config :: Config
-  , _jwtSettings :: JWTSettings
-  , _cookieSettings :: CookieSettings
-  , _logger :: LoggerSet
-  , _nextId :: IORef GenericId
-  , _transactions :: IORef (Map GenericId Transaction)
+  { nextId :: IORef GenericId
+  , transactions :: IORef (Map GenericId Transaction)
   }
-
-makeLenses ''Handle
 
 newHandle :: IO Handle
-newHandle = newHandleWith defaultConfig
-
-newHandleWith :: Config -> IO Handle
-newHandleWith cfg = Handle
-  <$> pure cfg
-  <*> (defaultJWTSettings <$> getJwk (cfg ^. jwtKeyFile))
-  <*> pure (defaultCookieSettings { cookieXsrfSetting = Just xsrfCookieSettings })
-  <*> newStdoutLoggerSet defaultBufSize
-  <*> newIORef 1
+newHandle = Handle
+  <$> newIORef 1
   <*> newIORef mempty
-  where
-    xsrfCookieSettings = defaultXsrfCookieSettings { xsrfExcludeGet = True }
-
-    getJwk path = readKey path `E.catch` \(_::E.IOException) -> writeKey path >> readKey path
-
-getNextId :: Handle -> IO GenericId
-getNextId = postIncIORef . _nextId
-
-data SavedState = SavedState
-  { savedstateNextId :: GenericId
-  , savedstateTransactions :: Map GenericId Transaction
-  }
-  deriving (Generic)
-
-instance FromJSON SavedState where
-  parseJSON = Aeson.genericParseJSON aesonOptions
-
-instance ToJSON SavedState where
-  toJSON = Aeson.genericToJSON aesonOptions
-  toEncoding = Aeson.genericToEncoding aesonOptions
-
-saveHandleState
-  :: Handle
-  -> IO SavedState
-saveHandleState h = SavedState
-  <$> readIORef (h^.nextId)
-  <*> readIORef (h^.transactions)
-
-restoreHandleState
-  :: Handle
-  -> SavedState
-  -> IO ()
-restoreHandleState h s = do
-  writeIORef (h^.nextId)       (savedstateNextId s)
-  writeIORef (h^.transactions) (savedstateTransactions s)
-
-dumpState
-  :: Handle
-  -> FilePath
-  -> IO ()
-dumpState h outFile = do
-  let tmpFile = outFile <> ".tmp"
-  Aeson.encodeFile tmpFile =<< saveHandleState h
-  renamePath tmpFile outFile
-
-loadState
-  :: Handle
-  -> FilePath
-  -> IO ()
-loadState h inFile = do
-  s <- Aeson.decodeFileStrict' inFile
-       `E.catch` \(_::E.IOException) -> return Nothing
-  case s of
-    Just v  -> restoreHandleState h v
-    Nothing -> return ()
 
 withHandle
   :: (Handle -> IO a)
   -> IO a
 withHandle act = E.bracket
-  (newHandle >>= \h -> loadState h stateFile >> return h)
-  (flip dumpState stateFile)
+  newHandle
+  (\_ -> return ())
   act
-  where
-    stateFile = "_liquidator.state"
+
+getNextId :: Handle -> IO GenericId
+getNextId = postIncIORef . nextId
 
 ------------------------------------------------------------------------------
 
@@ -218,98 +85,80 @@ getAllTransactions
   :: Handle
   -> IO [(GenericId, Transaction)]
 getAllTransactions h
-  = Map.toList <$> readIORef (h^.transactions)
+  = Map.toList <$> readIORef (transactions h)
 
 getTransactionById
   :: Handle
   -> GenericId
   -> IO (Maybe Transaction)
 getTransactionById h txid
-  = Map.lookup txid <$> readIORef (h^.transactions)
-
-data AddTransactionParam = AddTransactionParam
-  { _addTransactionParamSubject :: Text
-  , _addTransactionParamAmount :: (MoneyAmount, MoneyAmount)
-  , _addTransactionParamDay :: Day
-  }
-#ifdef TEST
-  deriving (Show)
-#endif
-
-makeLenses ''AddTransactionParam
+  = Map.lookup txid <$> readIORef (transactions h)
 
 addTransaction
   :: Handle
-  -> AddTransactionParam
+  -> Transaction
   -> IO GenericId
-addTransaction h param = do
-  theid <- getNextId h
-  atomicModifyIORef' (h^.transactions) $ \m ->
-    let
-      tx = Transaction
-        { transactionSubject = param^.addTransactionParamSubject
-        , transactionAmount = uncurry moneyFromAmount (param^.addTransactionParamAmount)
-        , transactionDay = param^.addTransactionParamDay
-        }
-    in
-      (Map.insert theid tx m, theid)
+addTransaction h tx = do
+  txid <- getNextId h
+  atomicModifyIORef' (transactions h) $ \m ->
+    (Map.insert txid tx m, txid)
+
+updateTransaction
+  :: Handle
+  -> GenericId
+  -> Transaction
+  -> IO (Maybe Bool)
+updateTransaction h txid tx = do
+  mbExisting <- getTransactionById h txid
+  case mbExisting of
+    Just txOld ->
+      atomicModifyIORef' (transactions h) $ \m ->
+        let
+          edited = tx /= txOld
+        in
+          ( if edited then Map.insert txid tx m else m
+          , Just edited
+          )
+    Nothing ->
+      return Nothing
+
+deleteTransaction
+  :: Handle
+  -> GenericId
+  -> IO Bool
+deleteTransaction h txid = do
+  mbStored <- getTransactionById h txid
+  case mbStored of
+    Just _ -> do
+      atomicModifyIORef' (transactions h) $ \m ->
+        (Map.delete txid m, True)
+
+    Nothing ->
+      return False
 
 ------------------------------------------------------------------------------
 
-noContent
-  :: IO a
-  -> IO NoContent
-noContent
-  = (*> pure NoContent)
+renderNav :: Html ()
+renderNav = nav_ $ do
+  span_ $ a_ [ href_ "/" ]       (text_ "Home")   >> text_ " | "
+  span_ $ a_ [ href_ "/list" ]   (text_ "List")   >> text_ " | "
+  span_ $ a_ [ href_ "/new" ]    (text_ "New")
 
--- https://stackoverflow.com/a/54890919
-newtype Cookies' = Cookies' { unCookies :: Cookies }
-
-instance FromHttpApiData Cookies' where
-  parseHeader     = return . Cookies' . parseCookies
-  parseQueryParam = return . Cookies' . parseCookies . Text.encodeUtf8
-
-------------------------------------------------------------------------------
-
-text_ :: Text -> Html ()
-text_ = toHtml
-
-------------------------------------------------------------------------------
-
-simplePage'
+simplePage
   :: Text
-  -> Maybe Text
   -> Html ()
   -> Html ()
-simplePage' pageTitle mbPageXsrfToken pageBody = doctypehtml_ $ do
+simplePage pageTitle pageBody = doctypehtml_ $ do
   head_ $ do
     meta_ [ charset_ "UTF-8" ]
-    whenJust mbPageXsrfToken $ \pageXsrfToken ->
-      meta_ [ name_ "xsrf-token", value_ pageXsrfToken ]
     title_ pageTitle_
   body_ $ do
     renderNav
     h1_ pageTitle_
     div_ [ class_ "main" ] $ do
       pageBody
-    footer_ $ do
-      text_ ("XSRF-TOKEN: " <> showText mbPageXsrfToken)
   where
     pageTitle_ = text_ pageTitle
-
-simplePage
-  :: Text
-  -> Html ()
-  -> Html ()
-simplePage pageTitle pageBody = simplePage' pageTitle Nothing pageBody
-
-renderNav :: Html ()
-renderNav = nav_ $ do
-  span_ $ a_ [ href_ "/" ]       (text_ "Home")   >> text_ " | "
-  span_ $ a_ [ href_ "/login" ]  (text_ "Login")  >> text_ " | "
-  span_ $ a_ [ href_ "/logout" ] (text_ "Logout") >> text_ " | "
-  span_ $ a_ [ href_ "/list" ]   (text_ "List")   >> text_ " | "
-  span_ $ a_ [ href_ "/new" ]    (text_ "New")
 
 ------------------------------------------------------------------------------
 
@@ -343,10 +192,8 @@ renderLoginPage = simplePage "Login" $ do
            ]
 
 renderNewTransactionPage
-  :: UserSession
-  -> Maybe Text
-  -> Html ()
-renderNewTransactionPage _ mbXsrfToken = simplePage' "New" mbXsrfToken $ do
+  :: Html ()
+renderNewTransactionPage = simplePage "New" $ do
   form_ [ name_ "new"
         , method_ "post"
         , action_ "/new" -- TODO(joachifm) use API link
@@ -382,27 +229,15 @@ renderNewTransactionPage _ mbXsrfToken = simplePage' "New" mbXsrfToken $ do
              , value_ "2019-01-01"
              , tabindex_ "4"
              ]
-
-    -- Pass along value for X-XSRF-TOKEN header
-    whenJust mbXsrfToken $ \v -> do
-      input_ [ name_ "xsrf_token"
-             , type_ "text"
-             , hidden_ "hidden"
-             , value_ v
-             ]
-
     input_ [ type_ "submit"
            , value_ "Create"
            , tabindex_ "5"
            ]
 
 renderTransactionsListPage
-  :: UserSession
-  -> [(GenericId, Transaction)]
+  :: [(GenericId, Transaction)]
   -> Html ()
-renderTransactionsListPage sess txlist = simplePage "Transactions" $ do
-  p_ $ do
-    text_ ("The session id is : " <> showText (sessionId sess))
+renderTransactionsListPage txlist = simplePage "List" $ do
   ul_ $ do
     forM_ txlist $ \(i, tx) -> do
       li_ $ do
@@ -414,319 +249,225 @@ renderViewTransactionByIdPage
   -> Html ()
 renderViewTransactionByIdPage txid = simplePage "View" $ do
   p_ $ do
-    text_ ("Viewing txid " <> showText txid)
+    a_ [ href_ ("/edit/" <> showText txid) ] $ text_ "Edit"
   p_ $ do
-    a_ [ href_ ("/edit/" <> showText txid) ] $
-      text_ "Edit"
+    a_ [ href_ ("/delete/" <> showText txid) ] $ text_ "Delete"
 
 renderEditTransactionByIdPage
-  :: Maybe Text
-  -> GenericId
+  :: GenericId
+  -> Maybe Transaction
   -> Html ()
-renderEditTransactionByIdPage mbXsrfToken txid = simplePage' "Edit" mbXsrfToken $ do
+renderEditTransactionByIdPage txid Nothing = simplePage "Invalid transaction id" $ do
   p_ $ do
-    text_ ("Editing txid " <> showText txid)
+    text_ ("Transaction id not found: " <> showText txid)
+renderEditTransactionByIdPage txid (Just txdata) = simplePage "Edit" $ do
   div_ $ do
     form_ [ name_ "edit"
-          , action_ "/edit"
+          , action_ ("/edit/" <> showText txid)
           , method_ "post"
           ] $ do
-      -- TODO(joachifm) xsrf token hidden field
       section_ $ do
         input_ [ name_ "subject"
                , type_ "text"
-               , value_ "Subject"
-               , required_ "required"
+               , value_ (transactionSubject txdata)
                , autofocus_
                , tabindex_ "1"
                ]
-
-        input_ [ name_ "txid"
+        input_ [ name_ "amount_pri"
                , type_ "number"
-               , value_ (showText txid)
-               , hidden_ "hidden"
+               , value_ (showText (fst (moneyToAmounts (transactionAmount txdata))))
+               , min_ "0"
+               , max_ "999999"
+               , tabindex_ "2"
+             ]
+        input_ [ name_ "amount_sub"
+               , type_ "number"
+               , value_ (showText (snd (moneyToAmounts (transactionAmount txdata))))
+               , min_ "0"
+               , max_ "99"
+               , tabindex_ "3"
                ]
-
-      whenJust mbXsrfToken $ \xsrfToken ->
-        input_ [ name_ "xsrf_token"
-               , type_ "text"
-               , value_ xsrfToken
-               , hidden_ "hidden"
+        input_ [ name_ "day"
+               , type_ "date"
+               , value_ (showText (transactionDay txdata))
+               , tabindex_ "4"
                ]
-
       input_ [ type_ "submit"
              , value_ "Apply changes"
-             , tabindex_ "2"
+             , tabindex_ "5"
              ]
+
+renderDeleteTransactionByIdPage
+  :: GenericId
+  -> Maybe Transaction
+  -> Html ()
+renderDeleteTransactionByIdPage txid Nothing = simplePage "Invalid transaction id" $ do
+  p_ $ do
+    text_ ("Transaction id not found: " <> showText txid)
+renderDeleteTransactionByIdPage txid (Just _) = simplePage "Delete" $ do
+  form_ [ name_ "delete"
+        , action_ ("/delete/" <> showText txid)
+        , method_ "post"
+        ] $ do
+    input_ [ type_ "submit", value_ "Delete" ]
 
 ------------------------------------------------------------------------------
 
-data CreateTransactionFormData = CreateTransactionFormData
-  { createtransactionformSubject :: Text
-  , createtransactionformAmountPri :: Int
-  , createtransactionformAmountSub :: Maybe Int
-  , createtransactionformDay :: Day
-  , createtransactionformXsrfToken :: Text -- X-XSRF-TOKEN header value
+data TransactionFormData = TransactionFormData
+  { transactionformSubject :: Text
+  , transactionformAmountPri :: MoneyAmount
+  , transactionformAmountSub :: Maybe MoneyAmount
+  , transactionformDay :: Day
   }
   deriving (Generic)
 
-instance FromForm CreateTransactionFormData where
-  fromForm = Form.genericFromForm formOptions
+instance FromForm TransactionFormData where fromForm = Form.genericFromForm formOptions
 
-data EditTransactionFormData = EditTransactionFormData
-  { edittransactionformSubject :: Maybe Text
-  , edittransactionformAmountPri :: Maybe Int
-  , edittransactionformAmountSub :: Maybe Int
-  , edittransactionformDay :: Maybe Day
-  , edittransactionformXsrfToken :: Text -- X-XSRF-TOKEN header value
+makeTransactionFromFormData
+  :: TransactionFormData
+  -> Transaction
+makeTransactionFromFormData formData = Transaction
+  { transactionSubject = transactionformSubject formData
+  , transactionAmount = moneyFromAmount (transactionformAmountPri formData)
+                                        (fromMaybe 0 (transactionformAmountSub formData))
+  , transactionDay = transactionformDay formData
+  , transactionNotes = []
   }
-  deriving (Generic)
-
-instance FromForm EditTransactionFormData where
-  fromForm = Form.genericFromForm formOptions
-
-data LoginFormData = LoginFormData
-  { loginformUsername :: Text
-  , loginformPassword :: Text
-  }
-  deriving (Generic)
-
-instance FromForm LoginFormData where
-  fromForm = Form.genericFromForm formOptions
-
-loginFormDataToBasicAuthData
-  :: LoginFormData
-  -> BasicAuthData
-loginFormDataToBasicAuthData formData
-  = BasicAuthData
-    { basicAuthUsername = Text.encodeUtf8 (loginformUsername formData)
-    , basicAuthPassword = Text.encodeUtf8 (loginformPassword formData)
-    }
 
 ------------------------------------------------------------------------------
 
 type WebApi
-  =    Get '[HTML] (Html ())
-
-  -- /login
-  :<|> "login" :>
-       Get '[HTML] (Html ())
-
-  :<|> "login" :>
-       ReqBody '[FormUrlEncoded] LoginFormData :>
-       Verb 'POST 301 '[PlainText]
-            (Headers '[ Header "Location" Text
-                        -- XSRF-TOKEN & JWT-COOKIE
-                      , Header "Set-Cookie" SetCookie
-                      , Header "Set-Cookie" SetCookie
-                      ] NoContent)
-
-  -- /logout
-  :<|> "logout" :>
-       Get '[HTML] (Html ())
-
-  :<|> "logout" :>
-       Verb 'POST 301 '[PlainText]
-            (Headers '[ Header "Location" Text
-                      , Header "Set-Cookie" SetCookie
-                      , Header "Set-Cookie" SetCookie
-                      ] NoContent)
+  =    Get '[HTML]
+           (Html ())
 
   -- /list
-  :<|> Auth '[Cookie] UserSession :>
-       "list" :>
-       Get '[HTML] (Html ())
-
-  -- /new
-  :<|> Auth '[Cookie] UserSession :>
-       Header "Cookie" Cookies' :>
-       "new" :>
+  :<|> "list" :>
        Get '[HTML]
            (Html ())
 
-  :<|> Auth '[Cookie] UserSession :>
-       "new" :>
-       ReqBody '[FormUrlEncoded] CreateTransactionFormData :>
+  -- /new
+  :<|> "new" :>
+       Get '[HTML]
+           (Html ())
+
+  :<|> "new" :>
+       ReqBody '[FormUrlEncoded] TransactionFormData :>
        Verb 'POST 301 '[PlainText]
             (Headers '[ Header "Location" Text ]
                      NoContent)
 
   -- /view
-  :<|> Auth '[Cookie] UserSession :>
-       "view" :>
+  :<|> "view" :>
        Capture "id" GenericId :>
        Get '[HTML]
            (Html ())
 
   -- /edit
-  :<|> Auth '[Cookie] UserSession :>
-       Header "Cookie" Cookies' :>
-       "edit" :>
+  :<|> "edit" :>
        Capture "id" GenericId :>
        Get '[HTML]
            (Html ())
 
-  :<|> Auth '[Cookie] UserSession :>
-       "edit" :>
-       ReqBody '[FormUrlEncoded] EditTransactionFormData :>
+  :<|> "edit" :>
+       Capture "id" GenericId :>
+       ReqBody '[FormUrlEncoded] TransactionFormData :>
+       Verb 'POST 301 '[PlainText]
+            (Headers '[ Header "Location" Text ]
+                     NoContent)
+
+  -- /delete
+  :<|> "delete" :>
+       Capture "id" GenericId :>
+       Get '[HTML]
+           (Html ())
+
+  :<|> "delete" :>
+       Capture "id" GenericId :>
        Verb 'POST 301 '[PlainText]
             (Headers '[ Header "Location" Text ]
                      NoContent)
 
 ------------------------------------------------------------------------------
 
-lookupXsrfTokenText
-  :: Maybe XsrfCookieSettings
-  -> Cookies'
-  -> Maybe Text
-lookupXsrfTokenText Nothing _
-  = Nothing
-lookupXsrfTokenText (Just settings) cookies
-  = Text.decodeUtf8 <$> lookup (xsrfCookieName settings)
-                               (unCookies cookies)
-
-------------------------------------------------------------------------------
-
--- /
+-- index
 
 getIndexPageHandler
   :: Handle
   -> IO (Html ())
 getIndexPageHandler _ = pure $ renderIndexPage
 
--- /login
-
-getLoginPageHandler
-  :: Handle
-  -> IO (Html ())
-getLoginPageHandler _ = pure $ renderLoginPage
-
-postLoginHandler
-  :: Handle
-  -> LoginFormData
-  -> IO (Headers '[ Header "Location" Text
-                  , Header "Set-Cookie" SetCookie
-                  , Header "Set-Cookie" SetCookie
-                  ] NoContent)
-postLoginHandler h rq = do
-  if loginformUsername rq == "admin" && loginformPassword rq == "admin"
-    then do
-      let sess = UserSession 42
-      applyCookies <- acceptLogin (h^.cookieSettings) (h^.jwtSettings) sess
-      case applyCookies of
-        Just fn ->
-          pure . addHeader "/"
-               . fn
-               $ NoContent
-        Nothing ->
-          E.throwIO err401
-    else
-      E.throwIO err401
-
--- /logout
-
-getLogoutPageHandler
-  :: Handle
-  -> IO (Html ())
-getLogoutPageHandler _ = pure . simplePage "Log out" $ do
-  form_ [ name_ "logout"
-        , action_ "/logout"
-        , method_ "post"
-        ] $ do
-    input_ [ type_ "submit", value_ "Log out" ]
-
-postLogoutHandler
-  :: Handle
-  -> IO (Headers '[ Header "Location" Text
-                  , Header "Set-Cookie" SetCookie
-                  , Header "Set-Cookie" SetCookie
-                  ] NoContent)
-postLogoutHandler h
-  = pure . addHeader "/"
-  . clearSession (h^.cookieSettings)
-  $ NoContent
-
 -- /new
 
 getNewTransactionPageHandler
   :: Handle
-  -> AuthResult UserSession
-  -> Maybe Cookies'
   -> IO (Html ())
-getNewTransactionPageHandler h (Authenticated sess) mbCookies = do
-  pure . renderNewTransactionPage sess
-       $ join (lookupXsrfTokenText (cookieXsrfSetting (h^.cookieSettings)) <$>
-                                   mbCookies)
-getNewTransactionPageHandler _ _ _
-  = E.throwIO err401
+getNewTransactionPageHandler _ = do
+  pure renderNewTransactionPage
 
 postNewTransactionHandler
   :: Handle
-  -> AuthResult UserSession
-  -> CreateTransactionFormData
+  -> TransactionFormData
   -> IO (Headers '[ Header "Location" Text
                   ] NoContent)
-postNewTransactionHandler h (Authenticated _) formData = do
-  _ <- addTransaction h $
-    AddTransactionParam
-      (createtransactionformSubject formData)
-      (( fromIntegral (createtransactionformAmountPri formData)
-       , fromMaybe (0::MoneyAmount)
-                   (fromIntegral <$> createtransactionformAmountSub formData)
-       ))
-      (createtransactionformDay formData)
+postNewTransactionHandler h formData = do
+  _ <- addTransaction h (makeTransactionFromFormData formData)
   pure . addHeader "/list"
        $ NoContent
-postNewTransactionHandler _ _ _ = E.throwIO err401
 
 -- /list
 
 getTransactionsListPageHandler
   :: Handle
-  -> AuthResult UserSession
   -> IO (Html ())
-getTransactionsListPageHandler h (Authenticated sess)
-  = renderTransactionsListPage sess <$> getAllTransactions h
-getTransactionsListPageHandler _ _
-  = E.throwIO err401
+getTransactionsListPageHandler h
+  = renderTransactionsListPage <$> getAllTransactions h
 
 -- /view/:id
 
 getViewTransactionByIdPageHandler
   :: Handle
-  -> AuthResult UserSession
   -> GenericId
   -> IO (Html ())
-getViewTransactionByIdPageHandler h (Authenticated sess) txid
+getViewTransactionByIdPageHandler h txid
   = pure $ renderViewTransactionByIdPage txid
-getViewTransactionByIdPageHandler _ _ _
-  = E.throwIO err401
 
 -- /edit/:id
 
 getEditTransactionByIdPageHandler
   :: Handle
-  -> AuthResult UserSession
-  -> Maybe Cookies'
   -> GenericId
   -> IO (Html ())
-getEditTransactionByIdPageHandler h (Authenticated sess) mbCookies txid
-  = pure . flip renderEditTransactionByIdPage txid
-  $ join (lookupXsrfTokenText (cookieXsrfSetting (h^.cookieSettings)) <$>
-                              mbCookies)
-getEditTransactionByIdPageHandler _ _ _ _
-  = E.throwIO err401
+getEditTransactionByIdPageHandler h txid
+  = renderEditTransactionByIdPage txid <$> getTransactionById h txid
 
-postEditTransactionHandler
+postEditTransactionByIdHandler
   :: Handle
-  -> AuthResult UserSession
-  -> EditTransactionFormData
+  -> GenericId
+  -> TransactionFormData
   -> IO (Headers '[ Header "Location" Text
                   ] NoContent)
-postEditTransactionHandler h (Authenticated _) formData = do
+postEditTransactionByIdHandler h txid formData = do
+  _ <- updateTransaction h txid (makeTransactionFromFormData formData)
   pure . addHeader "/list"
        $ NoContent
-postEditTransactionHandler _ _ _ = E.throwIO err401
+
+-- /delete/:id
+
+getDeleteTransactionByIdPageHandler
+  :: Handle
+  -> GenericId
+  -> IO (Html ())
+getDeleteTransactionByIdPageHandler h txid
+  = renderDeleteTransactionByIdPage txid <$> getTransactionById h txid
+postDeleteTransactionByIdHandler
+  :: Handle
+  -> GenericId
+  -> IO (Headers '[ Header "Location" Text
+                  ] NoContent)
+postDeleteTransactionByIdHandler h txid = do
+  _ <- deleteTransaction h txid
+  pure . addHeader "/list"
+       $ NoContent
 
 ------------------------------------------------------------------------
 
@@ -735,16 +476,14 @@ webHandler
   -> ServerT WebApi IO
 webHandler h
   =    getIndexPageHandler h
-  :<|> getLoginPageHandler h
-  :<|> postLoginHandler h
-  :<|> getLogoutPageHandler h
-  :<|> postLogoutHandler h
   :<|> getTransactionsListPageHandler h
   :<|> getNewTransactionPageHandler h
   :<|> postNewTransactionHandler h
   :<|> getViewTransactionByIdPageHandler h
   :<|> getEditTransactionByIdPageHandler h
-  :<|> postEditTransactionHandler h
+  :<|> postEditTransactionByIdHandler h
+  :<|> getDeleteTransactionByIdPageHandler h
+  :<|> postDeleteTransactionByIdHandler h
 
 ------------------------------------------------------------------------------
 
@@ -771,44 +510,19 @@ convert
 
 ----------------------------------------------------------------------------
 
-authContextProxy
-  :: Proxy '[CookieSettings, JWTSettings]
-authContextProxy = Proxy
-
-authContextVal
-  :: Handle
-  -> Context '[CookieSettings, JWTSettings]
-authContextVal h
-  =  h^.cookieSettings
-  :. h^.jwtSettings
-  :. EmptyContext
-
 api :: Proxy Api
 api = Proxy
 
 server :: Handle -> Server Api
-server = hoistServerWithContext api authContextProxy convert . handler
+server = hoistServer api convert . handler
 
-appWith :: Handle -> Application
-appWith h = serveWithContext api (authContextVal h) (server h)
+app :: Handle -> Application
+app = serve api . server
 
 ----------------------------------------------------------------------------
 
 run :: IO ()
-run = withHandle $ \h -> runWith (appWith h)
-
-runWith :: Application -> IO ()
-runWith
-  = Warp.runTLS tlsSettings warpSettings
-  . Gzip.gzip Gzip.def
-  . ForceSSL.forceSSL
-  . Hsts.hsts
-  . VerifyCsrToken.verifyCsrToken
-
-tlsSettings :: Warp.TLSSettings
-tlsSettings = (Warp.tlsSettings "site.crt" "site.key")
-  { Warp.onInsecure = Warp.AllowInsecure -- Upgraded by forceSSL
-  }
+run = withHandle $ Warp.runSettings warpSettings . app
 
 warpSettings :: Warp.Settings
 warpSettings
