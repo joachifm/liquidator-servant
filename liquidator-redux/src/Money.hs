@@ -59,6 +59,17 @@ instance IsString Money where
     Right v -> v
     Left e  -> error ("fromString: " <> e)
 
+liftBinop op a b = MkMoney (moneyAmount a `op` moneyAmount b)
+
+instance Num Money where
+  fromInteger x = moneyFromAmount (fromInteger x) 0
+
+  (+) = liftBinop (+)
+  (-) = liftBinop (-)
+  (*) = liftBinop (*)
+
+  abs = id
+
 -- | A 'Money' smart constructor.
 --
 -- > moneyFromAmount 1 25
