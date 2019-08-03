@@ -333,11 +333,12 @@ renderDeleteTransactionByIdPage txid (Just _) = simplePage "Delete" $ do
     input_ [ type_ "submit", value_ "Delete" ]
 
 renderViewBalanceByDatePage
-  :: Money
+  :: Day
+  -> Money
   -> Html ()
-renderViewBalanceByDatePage amount = simplePage "Balance" $ do
+renderViewBalanceByDatePage day amount = simplePage "Balance" $ do
+  p_ $ text_ ("Balance for day " <> showText day)
   p_ $ text_ (ppMoney amount)
-  return ()
 
 ------------------------------------------------------------------------------
 
@@ -417,6 +418,7 @@ type WebApi
                      NoContent)
   -- /balance
   :<|> "balance" :>
+       QueryParam "day" Day :>
        Get '[HTML]
            (Html ())
 
@@ -506,9 +508,12 @@ postDeleteTransactionByIdHandler h txid = do
 
 getBalanceByDatePageHandler
   :: Handle
+  -> Maybe Day
   -> IO (Html ())
-getBalanceByDatePageHandler h
-  = renderViewBalanceByDatePage <$> getBalanceByDate h "2019-08-20"
+getBalanceByDatePageHandler h mbDay
+  = renderViewBalanceByDatePage day <$> getBalanceByDate h day
+  where
+    day = fromMaybe "2019-01-01" mbDay -- TODO(joachifm) use today
 
 ------------------------------------------------------------------------
 
