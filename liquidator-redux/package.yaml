@@ -64,7 +64,10 @@ dependencies:
 library:
   source-dirs: src
   exposed-modules:
-    - Liquidator
+    - Liquidator.Types
+    - Liquidator.Web.Api
+    - Liquidator.Web.Server
+    - Liquidator.Web.Types
 
 executables:
   liquidator-server:

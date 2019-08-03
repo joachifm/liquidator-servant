@@ -1,32 +1,32 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StrictData #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeOperators #-}
 
-module Liquidator where
+module Liquidator.Web.Server
+  ( -- * Handle
+    Handle
+  , newHandle
+  , withHandle
+
+    -- * Servant handler
+  , server
+
+    -- * WAI app
+  , app
+
+    -- * Entrypoint
+  , run
+  ) where
 
 import Imports
 
 import Control.Monad.Except (ExceptT(ExceptT))
 import Data.Aeson (FromJSON(..), ToJSON(..))
-import Data.Aeson.Casing (aesonPrefix, snakeCase)
 import Data.IORef
 import Data.Maybe (fromMaybe)
-import Data.Time.Calendar
-import qualified Data.Text as Text
 import Servant
-import Servant.HTML.Lucid
-import System.Directory (renamePath)
-import Web.FormUrlEncoded (FromForm, ToForm)
 import qualified Control.Exception as E
-import qualified Data.Aeson as Aeson
 import qualified Data.Map.Lazy as Map
 import qualified Network.Wai.Handler.Warp as Warp
-import qualified Web.FormUrlEncoded as Form
 
 import IORef
 import Money
@@ -34,29 +34,7 @@ import Util
 import Html
 import Instances ()
 
-------------------------------------------------------------------------------
-
-type GenericId = Int64
-
-------------------------------------------------------------------------------
-
-aesonOptions :: Aeson.Options
-aesonOptions = aesonPrefix snakeCase
-
-formOptions :: Form.FormOptions
-formOptions = Form.defaultFormOptions
-  { Form.fieldLabelModifier = Aeson.fieldLabelModifier aesonOptions
-  }
-
-------------------------------------------------------------------------------
-
-data Transaction = Transaction
-  { transactionSubject :: Text
-  , transactionAmount :: Money
-  , transactionDay :: Day
-  , transactionNotes :: [Text]
-  }
-  deriving (Eq, Generic, FromJSON, ToJSON)
+import Liquidator.Web.Api
 
 ------------------------------------------------------------------------------
 
@@ -156,18 +134,6 @@ getBalanceByDate h day
 
 sumit :: [(MoneyAmount, MoneyAmount)] -> (MoneyAmount, MoneyAmount)
 sumit = foldl' (\(za, zb) (a, b) -> (za + a, zb + b)) (0, 0)
-
-joinNotes
-  :: [Text]
-  -> Text
-joinNotes
-  = Text.intercalate ";"
-
-splitNotes
-  :: Text
-  -> [Text]
-splitNotes
-  = Text.split (`elem` [',', ';', '|'])
 
 ------------------------------------------------------------------------------
 
@@ -373,88 +339,6 @@ renderViewBalanceByDatePage day amount = simplePage "Balance" $ do
 
 ------------------------------------------------------------------------------
 
-data TransactionFormData = TransactionFormData
-  { transactionformSubject :: Text
-  , transactionformAmountPri :: MoneyAmount
-  , transactionformAmountSub :: Maybe MoneyAmount
-  , transactionformDay :: Day
-  , transactionformNotes :: [Text]
-  }
-  deriving (Generic)
-
-instance FromForm TransactionFormData where fromForm = Form.genericFromForm formOptions
-instance ToForm TransactionFormData where toForm = Form.genericToForm formOptions
-
-makeTransactionFromFormData
-  :: TransactionFormData
-  -> Transaction
-makeTransactionFromFormData formData = Transaction
-  { transactionSubject = transactionformSubject formData
-  , transactionAmount = moneyFromAmount (transactionformAmountPri formData)
-                                        (fromMaybe 0 (transactionformAmountSub formData))
-  , transactionDay = transactionformDay formData
-  , transactionNotes = concatMap splitNotes (transactionformNotes formData)
-  }
-
-------------------------------------------------------------------------------
-
-type WebApi
-  =    Get '[HTML]
-           (Html ())
-
-  -- /list
-  :<|> "list" :>
-       Get '[HTML]
-           (Html ())
-
-  -- /new
-  :<|> "new" :>
-       Get '[HTML]
-           (Html ())
-
-  :<|> "new" :>
-       ReqBody '[FormUrlEncoded] TransactionFormData :>
-       Verb 'POST 301 '[PlainText]
-            (Headers '[ Header "Location" Text ]
-                     NoContent)
-
-  -- /view
-  :<|> "view" :>
-       Capture "id" GenericId :>
-       Get '[HTML]
-           (Html ())
-
-  -- /edit
-  :<|> "edit" :>
-       Capture "id" GenericId :>
-       Get '[HTML]
-           (Html ())
-
-  :<|> "edit" :>
-       Capture "id" GenericId :>
-       ReqBody '[FormUrlEncoded] TransactionFormData :>
-       Verb 'POST 301 '[PlainText]
-            (Headers '[ Header "Location" Text ]
-                     NoContent)
-
-  -- /delete
-  :<|> "delete" :>
-       Capture "id" GenericId :>
-       Get '[HTML]
-           (Html ())
-
-  :<|> "delete" :>
-       Capture "id" GenericId :>
-       Verb 'POST 301 '[PlainText]
-            (Headers '[ Header "Location" Text ]
-                     NoContent)
-  -- /balance
-  :<|> "balance" :>
-       QueryParam "day" Day :>
-       Get '[HTML]
-           (Html ())
-
-------------------------------------------------------------------------------
 
 -- index
 
@@ -549,10 +433,10 @@ getBalanceByDatePageHandler h mbDay
 
 ------------------------------------------------------------------------
 
-webHandler
+apiHandler
   :: Handle
-  -> ServerT WebApi IO
-webHandler h
+  -> ServerT Api IO
+apiHandler h
   =    getIndexPageHandler h
   :<|> getTransactionsListPageHandler h
   :<|> getNewTransactionPageHandler h
@@ -563,17 +447,6 @@ webHandler h
   :<|> getDeleteTransactionByIdPageHandler h
   :<|> postDeleteTransactionByIdHandler h
   :<|> getBalanceByDatePageHandler h
-
-------------------------------------------------------------------------------
-
-type Api
-  =    WebApi
-  :<|> "api" :> "v1.0" :> EmptyAPI
-
-handler :: Handle -> ServerT Api IO
-handler h
-  =    webHandler h
-  :<|> emptyServer
 
 ----------------------------------------------------------------------------
 
@@ -589,11 +462,8 @@ convert
 
 ----------------------------------------------------------------------------
 
-api :: Proxy Api
-api = Proxy
-
 server :: Handle -> Server Api
-server = hoistServer api convert . handler
+server = hoistServer api convert . apiHandler
 
 app :: Handle -> Application
 app = serve api . server

@@ -1,6 +1,6 @@
 module Main (main) where
 
-import qualified Liquidator
+import qualified Liquidator.Web.Server as Server
 
 main :: IO ()
-main = Liquidator.run
+main = Server.run

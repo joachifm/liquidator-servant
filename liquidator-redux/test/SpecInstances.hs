@@ -6,7 +6,8 @@ module SpecInstances where
 import Test.QuickCheck
 import Test.QuickCheck.Instances ()
 
-import Liquidator
+import Liquidator.Types
+import Liquidator.Web.Types
 import Money
 
 ------------------------------------------------------------------------

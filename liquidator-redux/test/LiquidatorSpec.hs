@@ -12,7 +12,10 @@ import Test.QuickCheck
 import Servant.QuickCheck
 
 import SpecInstances ()
-import Liquidator
+
+import Liquidator.Types
+import Liquidator.Web.Api
+import Liquidator.Web.Server
 
 spec :: Spec
 spec = do
@@ -39,7 +42,6 @@ apiBestPracticesSpec = do
 
             -- Optional
             <%> createContainsValidLocation
-
             <%> mempty
           )
 
