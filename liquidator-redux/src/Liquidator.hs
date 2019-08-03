@@ -20,7 +20,7 @@ import Data.Time.Calendar (Day)
 import Servant
 import Servant.HTML.Lucid
 import System.Directory (renamePath)
-import Web.FormUrlEncoded (FromForm)
+import Web.FormUrlEncoded (FromForm, ToForm)
 import qualified Control.Exception as E
 import qualified Data.Aeson as Aeson
 import qualified Data.Map.Lazy as Map
@@ -322,6 +322,7 @@ data TransactionFormData = TransactionFormData
   deriving (Generic)
 
 instance FromForm TransactionFormData where fromForm = Form.genericFromForm formOptions
+instance ToForm TransactionFormData where toForm = Form.genericToForm formOptions
 
 makeTransactionFromFormData
   :: TransactionFormData

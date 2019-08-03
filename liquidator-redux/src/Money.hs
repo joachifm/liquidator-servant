@@ -33,6 +33,7 @@ import GHC.Generics (Generic)
 
 import Data.Word (Word32)
 
+import Data.String (IsString(..))
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Read as Text
@@ -52,6 +53,11 @@ newtype Money = MkMoney { moneyAmount :: MoneyAmount }
     , Show, Read
 #endif
     )
+
+instance IsString Money where
+  fromString x = case parseMoney (Text.pack x) of
+    Right v -> v
+    Left e  -> error ("fromString: " <> e)
 
 -- | A 'Money' smart constructor.
 --

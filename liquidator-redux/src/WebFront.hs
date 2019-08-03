@@ -10,15 +10,12 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.IORef
 import qualified Control.Concurrent.Async as Async
 
-import qualified Data.Text as Text
+import qualified Data.Map.Lazy as Map
 
-import Lucid (Html, toHtml)
-import Lucid.Html5
 import qualified Lucid.Base as Lucid
-
-import Network.HTTP.Types.Status
 import Web.Scotty hiding (html)
 
+import Html
 import IORef
 
 import qualified WebFront.Views.IndexPage as IndexPage
