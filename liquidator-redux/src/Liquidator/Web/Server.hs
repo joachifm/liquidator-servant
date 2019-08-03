@@ -1,9 +1,15 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE StrictData #-}
 
 module Liquidator.Web.Server
-  ( -- * Handle
-    Handle
+  (
+    -- * Config
+    Config(..)
+  , defaultConfig
+
+    -- * Handle
+  , Handle
   , newHandle
   , withHandle
 
@@ -20,44 +26,60 @@ module Liquidator.Web.Server
 import Imports
 
 import Control.Monad.Except (ExceptT(ExceptT))
-import Data.Aeson (FromJSON(..), ToJSON(..))
-import Data.IORef
-import Data.Maybe (fromMaybe)
-import Servant
 import qualified Control.Exception as E
+
+import Data.IORef
 import qualified Data.Map.Lazy as Map
+import Data.Time.Clock (UTCTime(..), getCurrentTime)
+
+import Servant
 import qualified Network.Wai.Handler.Warp as Warp
 
 import IORef
 import Money
-import Util
 import Html
 import Instances ()
 
 import Liquidator.Web.Api
+import qualified Liquidator.Web.Views as Views
+
+------------------------------------------------------------------------------
+
+data Config = Config
+  { cfgPort :: Warp.Port
+  , cfgHost :: Warp.HostPreference
+  }
+
+defaultConfig :: Config
+defaultConfig = Config
+  { cfgPort = 3000
+  , cfgHost = "127.0.0.1"
+  }
 
 ------------------------------------------------------------------------------
 
 data Handle = Handle
-  { nextId :: IORef GenericId
-  , transactions :: IORef (Map GenericId Transaction)
+  { hConfig :: Config
+  , hNextId :: IORef GenericId
+  , hTransactions :: IORef (Map GenericId Transaction)
   }
 
-newHandle :: IO Handle
-newHandle = Handle
-  <$> newIORef 1
+newHandle :: Config -> IO Handle
+newHandle cfg = Handle
+  <$> pure cfg
+  <*> newIORef 1
   <*> newIORef mempty
 
 withHandle
   :: (Handle -> IO a)
   -> IO a
-withHandle act = E.bracket
-  newHandle
-  (\_ -> return ())
-  act
+withHandle act = E.bracket (newHandle defaultConfig) (const $ return ()) act
 
 getNextId :: Handle -> IO GenericId
-getNextId = postIncIORef . nextId
+getNextId = postIncIORef . hNextId
+
+today :: IO Day
+today = utctDay <$> getCurrentTime
 
 ------------------------------------------------------------------------------
 
@@ -65,21 +87,21 @@ getAllTransactions
   :: Handle
   -> IO [(GenericId, Transaction)]
 getAllTransactions h
-  = Map.toList <$> readIORef (transactions h)
+  = Map.toList <$> readIORef (hTransactions h)
 
 getFilteredTransactions
   :: Handle
   -> (Transaction -> Bool)
   -> IO [(GenericId, Transaction)]
 getFilteredTransactions h p
-  = Map.toList . Map.filter p <$> readIORef (transactions h)
+  = Map.toList . Map.filter p <$> readIORef (hTransactions h)
 
 getTransactionById
   :: Handle
   -> GenericId
   -> IO (Maybe Transaction)
 getTransactionById h txid
-  = Map.lookup txid <$> readIORef (transactions h)
+  = Map.lookup txid <$> readIORef (hTransactions h)
 
 addTransaction
   :: Handle
@@ -87,7 +109,7 @@ addTransaction
   -> IO GenericId
 addTransaction h tx = do
   txid <- getNextId h
-  atomicModifyIORef' (transactions h) $ \m ->
+  atomicModifyIORef' (hTransactions h) $ \m ->
     (Map.insert txid tx m, txid)
 
 updateTransaction
@@ -99,7 +121,7 @@ updateTransaction h txid tx = do
   mbExisting <- getTransactionById h txid
   case mbExisting of
     Just txOld ->
-      atomicModifyIORef' (transactions h) $ \m ->
+      atomicModifyIORef' (hTransactions h) $ \m ->
         let
           edited = tx /= txOld
         in
@@ -117,7 +139,7 @@ deleteTransaction h txid = do
   mbStored <- getTransactionById h txid
   case mbStored of
     Just _ -> do
-      atomicModifyIORef' (transactions h) $ \m ->
+      atomicModifyIORef' (hTransactions h) $ \m ->
         (Map.delete txid m, True)
 
     Nothing ->
@@ -137,215 +159,12 @@ sumit = foldl' (\(za, zb) (a, b) -> (za + a, zb + b)) (0, 0)
 
 ------------------------------------------------------------------------------
 
-renderNav :: Html ()
-renderNav = nav_ $ do
-  span_ $ a_ [ href_ "/" ]        (text_ "Home")   >> text_ " | "
-  span_ $ a_ [ href_ "/list" ]    (text_ "List")   >> text_ " | "
-  span_ $ a_ [ href_ "/balance" ] (text_ "Balance")   >> text_ " | "
-  span_ $ a_ [ href_ "/new" ]     (text_ "New")
-
-simplePage
-  :: Text
-  -> Html ()
-  -> Html ()
-simplePage pageTitle pageBody = doctypehtml_ $ do
-  head_ $ do
-    meta_ [ charset_ "UTF-8" ]
-    title_ pageTitle_
-  body_ $ do
-    renderNav
-    h1_ pageTitle_
-    div_ [ class_ "main" ] $ do
-      pageBody
-  where
-    pageTitle_ = text_ pageTitle
-
-------------------------------------------------------------------------------
-
-renderIndexPage :: Html ()
-renderIndexPage = simplePage "Liquidator" $ do
-  p_ $ text_ "Hello, there"
-
-renderLoginPage :: Html ()
-renderLoginPage = simplePage "Login" $ do
-  form_ [ name_ "login"
-        , method_ "post"
-        , action_ "/login" -- TODO(joachifm) use API link
-        ] $ do
-    section_ $ do
-      input_ [ name_ "username"
-             , type_ "text"
-             , placeholder_ "Username"
-             , required_ "required"
-             , autofocus_
-             , tabindex_ "1"
-             ]
-      input_ [ name_ "password"
-             , type_ "password"
-             , placeholder_ "Passphrase"
-             , required_ "required"
-             , tabindex_ "2"
-             ]
-    input_ [ type_ "submit"
-           , value_ "Login"
-             , tabindex_ "3"
-           ]
-
-renderNewTransactionPage
-  :: Html ()
-renderNewTransactionPage = simplePage "New" $ do
-  form_ [ name_ "new"
-        , method_ "post"
-        , action_ "/new" -- TODO(joachifm) use API link
-        ] $ do
-    section_ $ do
-      input_ [ name_ "subject"
-             , type_ "text"
-             , placeholder_ "Subject"
-             , required_ "required"
-             , spellcheck_ "true"
-             , autofocus_
-             , tabindex_ "1"
-             ]
-    section_ $ do
-      input_ [ name_ "amount_pri"
-             , type_ "number"
-             , placeholder_ "0"
-             , min_ "0"
-             , max_ "999999"
-             , required_ "required"
-             , tabindex_ "2"
-             ]
-      input_ [ name_ "amount_sub"
-             , type_ "number"
-             , placeholder_ "0"
-             , min_ "0"
-             , max_ "99"
-             , value_ "0"
-             , tabindex_ "3"
-             ]
-    section_ $ do
-      input_ [ name_ "day"
-             , type_ "date"
-             , required_ "required"
-             , value_ "2019-01-01"
-             , tabindex_ "4"
-             ]
-    section_ $ do
-      input_ [ name_ "notes"
-             , type_ "text"
-             , placeholder_ "Note 1, note 2, note 3, ..."
-             , tabindex_ "5"
-             ]
-    section_ $ do
-      input_ [ type_ "submit"
-             , value_ "Create"
-             , tabindex_ "6"
-             ]
-
-renderTransactionsListPage
-  :: [(GenericId, Transaction)]
-  -> Html ()
-renderTransactionsListPage txlist = simplePage "List" $ do
-  ul_ $ do
-    forM_ txlist $ \(i, tx) -> do
-      li_ $ do
-        a_ [ href_ ("/view/" <> showText i) ] $
-          text_ (showText i <> ":" <> transactionSubject tx)
-
-renderViewTransactionByIdPage
-  :: GenericId
-  -> Html ()
-renderViewTransactionByIdPage txid = simplePage "View" $ do
-  p_ $ do
-    a_ [ href_ ("/edit/" <> showText txid) ] $ text_ "Edit"
-  p_ $ do
-    a_ [ href_ ("/delete/" <> showText txid) ] $ text_ "Delete"
-
-renderEditTransactionByIdPage
-  :: GenericId
-  -> Maybe Transaction
-  -> Html ()
-renderEditTransactionByIdPage txid Nothing = simplePage "Invalid transaction id" $ do
-  p_ $ do
-    text_ ("Transaction id not found: " <> showText txid)
-renderEditTransactionByIdPage txid (Just txdata) = simplePage "Edit" $ do
-  div_ $ do
-    form_ [ name_ "edit"
-          , action_ ("/edit/" <> showText txid)
-          , method_ "post"
-          ] $ do
-      section_ $ do
-        input_ [ name_ "subject"
-               , type_ "text"
-               , value_ (transactionSubject txdata)
-               , autofocus_
-               , tabindex_ "1"
-               ]
-      section_ $ do
-        input_ [ name_ "amount_pri"
-               , type_ "number"
-               , value_ (showText (fst (moneyToAmounts (transactionAmount txdata))))
-               , min_ "0"
-               , max_ "999999"
-               , tabindex_ "2"
-             ]
-        input_ [ name_ "amount_sub"
-               , type_ "number"
-               , value_ (showText (snd (moneyToAmounts (transactionAmount txdata))))
-               , min_ "0"
-               , max_ "99"
-               , tabindex_ "3"
-               ]
-      section_ $ do
-        input_ [ name_ "day"
-               , type_ "date"
-               , value_ (showText (transactionDay txdata))
-               , tabindex_ "4"
-               ]
-      section_ $ do
-        input_ [ name_ "notes"
-               , type_ "text"
-               , value_ (joinNotes (transactionNotes txdata))
-               , tabindex_ "5"
-               ]
-      section_ $ do
-        input_ [ type_ "submit"
-               , value_ "Apply changes"
-               , tabindex_ "6"
-               ]
-
-renderDeleteTransactionByIdPage
-  :: GenericId
-  -> Maybe Transaction
-  -> Html ()
-renderDeleteTransactionByIdPage txid Nothing = simplePage "Invalid transaction id" $ do
-  p_ $ do
-    text_ ("Transaction id not found: " <> showText txid)
-renderDeleteTransactionByIdPage txid (Just _) = simplePage "Delete" $ do
-  form_ [ name_ "delete"
-        , action_ ("/delete/" <> showText txid)
-        , method_ "post"
-        ] $ do
-    input_ [ type_ "submit", value_ "Delete" ]
-
-renderViewBalanceByDatePage
-  :: Day
-  -> Money
-  -> Html ()
-renderViewBalanceByDatePage day amount = simplePage "Balance" $ do
-  p_ $ text_ ("Balance for day " <> showText day)
-  p_ $ text_ (ppMoney amount)
-
-------------------------------------------------------------------------------
-
-
 -- index
 
 getIndexPageHandler
   :: Handle
   -> IO (Html ())
-getIndexPageHandler _ = pure $ renderIndexPage
+getIndexPageHandler _ = pure $ Views.indexPage
 
 -- /new
 
@@ -353,7 +172,7 @@ getNewTransactionPageHandler
   :: Handle
   -> IO (Html ())
 getNewTransactionPageHandler _ = do
-  pure renderNewTransactionPage
+  pure Views.newTransactionPage
 
 postNewTransactionHandler
   :: Handle
@@ -371,7 +190,7 @@ getTransactionsListPageHandler
   :: Handle
   -> IO (Html ())
 getTransactionsListPageHandler h
-  = renderTransactionsListPage <$> getAllTransactions h
+  = Views.transactionsListPage <$> getAllTransactions h
 
 -- /view/:id
 
@@ -379,8 +198,8 @@ getViewTransactionByIdPageHandler
   :: Handle
   -> GenericId
   -> IO (Html ())
-getViewTransactionByIdPageHandler h txid
-  = pure $ renderViewTransactionByIdPage txid
+getViewTransactionByIdPageHandler _ txid
+  = pure $ Views.viewTransactionByIdPage txid
 
 -- /edit/:id
 
@@ -389,7 +208,7 @@ getEditTransactionByIdPageHandler
   -> GenericId
   -> IO (Html ())
 getEditTransactionByIdPageHandler h txid
-  = renderEditTransactionByIdPage txid <$> getTransactionById h txid
+  = Views.editTransactionByIdPage txid <$> getTransactionById h txid
 
 postEditTransactionByIdHandler
   :: Handle
@@ -409,7 +228,7 @@ getDeleteTransactionByIdPageHandler
   -> GenericId
   -> IO (Html ())
 getDeleteTransactionByIdPageHandler h txid
-  = renderDeleteTransactionByIdPage txid <$> getTransactionById h txid
+  = Views.deleteTransactionByIdPage txid <$> getTransactionById h txid
 postDeleteTransactionByIdHandler
   :: Handle
   -> GenericId
@@ -426,10 +245,9 @@ getBalanceByDatePageHandler
   :: Handle
   -> Maybe Day
   -> IO (Html ())
-getBalanceByDatePageHandler h mbDay
-  = renderViewBalanceByDatePage day <$> getBalanceByDate h day
-  where
-    day = fromMaybe "2019-01-01" mbDay -- TODO(joachifm) use today
+getBalanceByDatePageHandler h mbDay = do
+  day <- maybe today pure mbDay
+  Views.viewBalanceByDatePage day <$> getBalanceByDate h day
 
 ------------------------------------------------------------------------
 

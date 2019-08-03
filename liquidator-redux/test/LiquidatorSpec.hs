@@ -19,15 +19,21 @@ import Liquidator.Web.Server
 
 spec :: Spec
 spec = do
+  miscSpec
   apiBestPracticesSpec
   jsonDecSpec
+
+miscSpec :: Spec
+miscSpec = do
+  prop "joinNotes/splitNotes is reversible" $ \(xs::[Text]) ->
+    (cleanNotes xs /= []) ==> splitNotes (joinNotes xs) == cleanNotes xs
 
 apiBestPracticesSpec :: Spec
 apiBestPracticesSpec = do
   describe "WebApi" $ do
     it "follows best practices" $ do
 
-      withServantServer api (server <$> newHandle) $ \burl ->
+      withServantServer api (server <$> newHandle defaultConfig) $ \burl ->
         serverSatisfies api burl stdArgs
           (
             -- Best practices

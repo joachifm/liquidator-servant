@@ -33,8 +33,6 @@ module Money
 
 import GHC.Generics (Generic)
 
-import Data.Word (Word32)
-
 import Data.String (IsString(..))
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -42,9 +40,8 @@ import qualified Data.Text.Read as Text
 
 import Data.Aeson (FromJSON, ToJSON)
 
--- | Underlying integer type used to represent money amounts.  Fixed-width
--- but should be large enuf ...
-type MoneyAmount = Word32
+-- | The underlying integer type used to represent money amounts.
+type MoneyAmount = Integer
 
 -- | A representation of an amount of money (in an unspecified currency).
 --
@@ -54,7 +51,8 @@ newtype Money = MkMoney { moneyAmount :: MoneyAmount }
   deriving
     ( Eq, Ord, Generic, FromJSON, ToJSON
 #ifdef TEST
-    , Show, Read
+    , Show
+    , Read
 #endif
     )
 
@@ -63,16 +61,22 @@ instance IsString Money where
     Right v -> v
     Left e  -> error ("fromString: " <> e)
 
+liftBinop
+  :: (MoneyAmount -> MoneyAmount -> MoneyAmount)
+  -> (Money -> Money -> Money)
 liftBinop op a b = MkMoney (moneyAmount a `op` moneyAmount b)
 
 instance Num Money where
   fromInteger x = moneyFromAmount (fromInteger x) 0
 
   (+) = liftBinop (+)
-  (-) = liftBinop (-)
   (*) = liftBinop (*)
+  -- TODO(joachifm) unsafe ...
+  (-) = liftBinop (-)
 
   abs = id
+
+  signum = signum . fromIntegral . moneyAmount
 
 -- | A 'Money' smart constructor.
 --

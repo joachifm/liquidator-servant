@@ -10,6 +10,8 @@ module Liquidator.Types
     -- * Types
   , GenericId
   , Transaction(..)
+
+  , cleanNotes
   , joinNotes
   , splitNotes
 
@@ -21,6 +23,8 @@ import GHC.Generics (Generic)
 
 import Data.Int (Int64)
 import Data.Time.Calendar as X (Day)
+
+import qualified Data.List as List
 
 import Data.Text as X (Text)
 import qualified Data.Text as Text
@@ -54,10 +58,16 @@ joinNotes
   :: [Text]
   -> Text
 joinNotes
-  = Text.intercalate ";"
+  = Text.intercalate ";" . cleanNotes
 
 splitNotes
   :: Text
   -> [Text]
-splitNotes
-  = Text.split (`elem` [',', ';', '|'])
+splitNotes = cleanNotes . Text.split (`elem` [',', ';', '|'])
+
+cleanNotes
+  :: [Text]
+  -> [Text]
+cleanNotes = List.filter (not . Text.null) . map Text.strip
+
+ (`elem` [',', ';', '|'])

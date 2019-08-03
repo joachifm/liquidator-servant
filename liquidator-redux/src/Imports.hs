@@ -12,7 +12,11 @@ module Imports
 import GHC.Generics as X (Generic)
 
 import Control.Monad as X (ap, forM_, join)
-import Data.Foldable as X (foldl')
+import Data.Foldable as X
+  ( foldl'
+  , sum
+  , product
+  )
 
 import Data.Int as X (Int64)
 import Numeric.Natural as X

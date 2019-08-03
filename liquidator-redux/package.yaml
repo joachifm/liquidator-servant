@@ -8,6 +8,9 @@ license: 'AGPL-3.0-or-later'
 author: Joachim Fasting
 maintainer: joachifm@fastmail.fm
 
+default-extensions:
+  StrictData
+
 ghc-options:
   -Wall
   -Wcompat
@@ -17,10 +20,6 @@ ghc-options:
   -Wpartial-fields
   -Wredundant-constraints
   -fhide-source-paths
-  -Wno-unused-imports
-  -ddump-to-file
-  -ddump-simpl
-  -Wall-missed-specialisations
   -fspecialise-aggressively
   -fexpose-all-unfoldings
 
