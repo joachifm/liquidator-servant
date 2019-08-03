@@ -16,7 +16,7 @@ import Data.Aeson (FromJSON(..), ToJSON(..))
 import Data.Aeson.Casing (aesonPrefix, snakeCase)
 import Data.IORef
 import Data.Maybe (fromMaybe)
-import Data.Time.Calendar (Day)
+import Data.Time.Calendar
 import Servant
 import Servant.HTML.Lucid
 import System.Directory (renamePath)
@@ -31,6 +31,7 @@ import IORef
 import Money
 import Util
 import Html
+import Instances ()
 
 ------------------------------------------------------------------------------
 
@@ -87,6 +88,13 @@ getAllTransactions
 getAllTransactions h
   = Map.toList <$> readIORef (transactions h)
 
+getFilteredTransactions
+  :: Handle
+  -> (Transaction -> Bool)
+  -> IO [(GenericId, Transaction)]
+getFilteredTransactions h p
+  = Map.toList . Map.filter p <$> readIORef (transactions h)
+
 getTransactionById
   :: Handle
   -> GenericId
@@ -136,13 +144,26 @@ deleteTransaction h txid = do
     Nothing ->
       return False
 
+getBalanceByDate
+  :: Handle
+  -> Day
+  -> IO Money
+getBalanceByDate h day
+  = uncurry moneyFromAmount
+  . sumit . map (moneyToAmounts . transactionAmount . snd)
+  <$> getFilteredTransactions h (\tx -> transactionDay tx <= day)
+
+sumit :: [(MoneyAmount, MoneyAmount)] -> (MoneyAmount, MoneyAmount)
+sumit = foldl' (\(za, zb) (a, b) -> (za + a, zb + b)) (0, 0)
+
 ------------------------------------------------------------------------------
 
 renderNav :: Html ()
 renderNav = nav_ $ do
-  span_ $ a_ [ href_ "/" ]       (text_ "Home")   >> text_ " | "
-  span_ $ a_ [ href_ "/list" ]   (text_ "List")   >> text_ " | "
-  span_ $ a_ [ href_ "/new" ]    (text_ "New")
+  span_ $ a_ [ href_ "/" ]        (text_ "Home")   >> text_ " | "
+  span_ $ a_ [ href_ "/list" ]    (text_ "List")   >> text_ " | "
+  span_ $ a_ [ href_ "/balance" ] (text_ "Balance")   >> text_ " | "
+  span_ $ a_ [ href_ "/new" ]     (text_ "New")
 
 simplePage
   :: Text
@@ -311,6 +332,13 @@ renderDeleteTransactionByIdPage txid (Just _) = simplePage "Delete" $ do
         ] $ do
     input_ [ type_ "submit", value_ "Delete" ]
 
+renderViewBalanceByDatePage
+  :: Money
+  -> Html ()
+renderViewBalanceByDatePage amount = simplePage "Balance" $ do
+  p_ $ text_ (ppMoney amount)
+  return ()
+
 ------------------------------------------------------------------------------
 
 data TransactionFormData = TransactionFormData
@@ -387,6 +415,10 @@ type WebApi
        Verb 'POST 301 '[PlainText]
             (Headers '[ Header "Location" Text ]
                      NoContent)
+  -- /balance
+  :<|> "balance" :>
+       Get '[HTML]
+           (Html ())
 
 ------------------------------------------------------------------------------
 
@@ -470,6 +502,14 @@ postDeleteTransactionByIdHandler h txid = do
   pure . addHeader "/list"
        $ NoContent
 
+-- /balance
+
+getBalanceByDatePageHandler
+  :: Handle
+  -> IO (Html ())
+getBalanceByDatePageHandler h
+  = renderViewBalanceByDatePage <$> getBalanceByDate h "2019-08-20"
+
 ------------------------------------------------------------------------
 
 webHandler
@@ -485,6 +525,7 @@ webHandler h
   :<|> postEditTransactionByIdHandler h
   :<|> getDeleteTransactionByIdPageHandler h
   :<|> postDeleteTransactionByIdHandler h
+  :<|> getBalanceByDatePageHandler h
 
 ------------------------------------------------------------------------------
 
