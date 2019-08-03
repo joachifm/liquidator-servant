@@ -1,5 +1,2 @@
 packages:
-  --liquidator-api/
   liquidator-redux/
-  --liquidator-server/
-  -- liquidator-client/

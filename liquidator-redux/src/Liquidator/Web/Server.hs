@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StrictData #-}
@@ -25,6 +26,8 @@ module Liquidator.Web.Server
 
 import Imports
 
+import Control.Monad (forever)
+import Control.Concurrent (forkIO, threadDelay)
 import Control.Monad.Except (ExceptT(ExceptT))
 import qualified Control.Exception as E
 
@@ -58,28 +61,40 @@ defaultConfig = Config
 
 ------------------------------------------------------------------------------
 
+-- | Getting the current time is a relatively expensive operation.  To
+-- mitigate this cost, return a cached value that is updated periodically by a
+-- hidden timer.
+currentDay :: IO (IO Day)
+currentDay = do
+  dayRef <- newIORef "1970-01-01"
+  _ <- forkIO $ forever $ do
+    writeIORef dayRef =<< utctDay <$> getCurrentTime
+    threadDelay (60 * 1000000) -- TODO(joachifm) delay until next day
+  return (readIORef dayRef)
+
+------------------------------------------------------------------------------
+
 data Handle = Handle
   { hConfig :: Config
-  , hNextId :: IORef GenericId
+  , hNextId :: IO GenericId
+  , hToday :: IO Day
   , hTransactions :: IORef (Map GenericId Transaction)
   }
 
 newHandle :: Config -> IO Handle
-newHandle cfg = Handle
-  <$> pure cfg
-  <*> newIORef 1
-  <*> newIORef mempty
+newHandle cfg =
+  Handle
+    <$> pure cfg
+    <*> (newIORef 1 >>= return . postIncIORef)
+    <*> currentDay
+    <*> newIORef mempty
 
 withHandle
   :: (Handle -> IO a)
   -> IO a
-withHandle act = E.bracket (newHandle defaultConfig) (const $ return ()) act
-
-getNextId :: Handle -> IO GenericId
-getNextId = postIncIORef . hNextId
-
-today :: IO Day
-today = utctDay <$> getCurrentTime
+withHandle = E.bracket
+  (newHandle defaultConfig)
+  (const $ return ())
 
 ------------------------------------------------------------------------------
 
@@ -108,7 +123,7 @@ addTransaction
   -> Transaction
   -> IO GenericId
 addTransaction h tx = do
-  txid <- getNextId h
+  txid <- hNextId h
   atomicModifyIORef' (hTransactions h) $ \m ->
     (Map.insert txid tx m, txid)
 
@@ -246,7 +261,7 @@ getBalanceByDatePageHandler
   -> Maybe Day
   -> IO (Html ())
 getBalanceByDatePageHandler h mbDay = do
-  day <- maybe today pure mbDay
+  day <- maybe (hToday h) pure mbDay
   Views.viewBalanceByDatePage day <$> getBalanceByDate h day
 
 ------------------------------------------------------------------------
@@ -289,7 +304,8 @@ app = serve api . server
 ----------------------------------------------------------------------------
 
 run :: IO ()
-run = withHandle $ Warp.runSettings warpSettings . app
+run = withHandle $ \h -> do
+  Warp.runSettings warpSettings (app h)
 
 warpSettings :: Warp.Settings
 warpSettings

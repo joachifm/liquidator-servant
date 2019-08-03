@@ -63,11 +63,14 @@ joinNotes
 splitNotes
   :: Text
   -> [Text]
-splitNotes = cleanNotes . Text.split (`elem` [',', ';', '|'])
+splitNotes = cleanNotes . Text.split noteSep
 
 cleanNotes
   :: [Text]
   -> [Text]
 cleanNotes = List.filter (not . Text.null) . map Text.strip
 
- (`elem` [',', ';', '|'])
+noteSep
+  :: Char
+  -> Bool
+noteSep = (`elem` [',', ';', '|'])
