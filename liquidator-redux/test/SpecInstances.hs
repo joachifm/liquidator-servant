@@ -19,6 +19,7 @@ instance Arbitrary TransactionFormData where
     <*> arbitrary
     <*> arbitrary
     <*> arbitrary
+    <*> arbitrary
   shrink = genericShrink
 
 deriving instance Show TransactionFormData
