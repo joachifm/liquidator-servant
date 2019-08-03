@@ -10,22 +10,28 @@ let
 
   inherit selfSrc;
 
+  # Tools to be added to our development shell environment
   devTools = [
+    # Shell tools
+    coreutils
+    diffutils
+    findutils
+    gawk
+    gnugrep
+    gnumake
+    gnused
+
+    # Nix
     cachix
     nix
 
+    # Testing HTTP
+    curl
     httperf
     httpie
   ];
 
-  shellTools = [
-    coreutils
-    findutils
-    gawk
-    gnugrep
-    gnused
-  ];
-
+  # A custom Haskell package set containing our local packages
   haskellPackagesLocal = haskellPackages.override {
     overrides = self: super: {
 
@@ -34,6 +40,7 @@ let
     };
   };
 
+  # A custom GHC distribution
   hsDevEnv = haskellPackagesLocal.ghcWithPackages (hsPkgs: with hsPkgs; [
     cabal-install
     hpack
@@ -53,7 +60,7 @@ rec {
 
   devShell = mkShell {
     name = "dev-shell";
-    buildInputs = shellTools ++ devTools ++ [ hsDevEnv ];
+    buildInputs = devTools ++ [ hsDevEnv ];
     inherit hsDevEnv;
     shellHook = ''
       # Set NIX_GHC et al.

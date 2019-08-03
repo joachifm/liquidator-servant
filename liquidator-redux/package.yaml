@@ -68,9 +68,9 @@ library:
 
 executables:
   liquidator-server:
-    main: Main.hs
+    main: server.hs
     source-dirs:
-      - app/server
+      - app
       - src
 
     ghc-options: -threaded -rtsopts
@@ -84,7 +84,7 @@ tests:
 
     cpp-options: -DTEST
 
-    ghc-options: -O0 -threaded
+    ghc-options: -O0 -threaded "-with-rtsopts=-N"
 
     dependencies:
       - QuickCheck
