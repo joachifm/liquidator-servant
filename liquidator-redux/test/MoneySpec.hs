@@ -8,7 +8,7 @@ import Test.Hspec
 import Test.Hspec.QuickCheck
 
 import Money
-import Instances ()
+import SpecInstances ()
 
 spec :: Spec
 spec = do
