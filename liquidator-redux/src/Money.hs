@@ -6,6 +6,8 @@
 
 {-|
 Module: Money
+
+A representation of money amounts.
 -}
 
 module Money
@@ -44,8 +46,10 @@ import Data.Aeson (FromJSON, ToJSON)
 -- but should be large enuf ...
 type MoneyAmount = Word32
 
--- | A representation of an amount of money in a currency, relative to unit
--- (e.g., 100 for two decimals).
+-- | A representation of an amount of money (in an unspecified currency).
+--
+-- Internally, the amount is specified relative to unit 100, that allows for
+-- upto two decimals.
 newtype Money = MkMoney { moneyAmount :: MoneyAmount }
   deriving
     ( Eq, Ord, Generic, FromJSON, ToJSON

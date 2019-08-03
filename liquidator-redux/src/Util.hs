@@ -1,9 +1,15 @@
+{-|
+Module: Util
+
+A grab-bag of utilities.
+-}
+
 module Util
   ( showText
   , whenJust
   ) where
 
-import Data.Text (Text)
+import           Data.Text (Text)
 import qualified Data.Text as Text
 
 showText :: (Show a) => a -> Text

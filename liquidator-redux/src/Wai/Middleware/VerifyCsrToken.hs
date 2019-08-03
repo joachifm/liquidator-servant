@@ -16,8 +16,6 @@ module Wai.Middleware.VerifyCsrToken
   , cookieToHeader
   ) where
 
-import Control.Monad (join)
-
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Lazy as LB
 
@@ -26,6 +24,7 @@ import Data.IORef
 import Network.HTTP.Types (parseQuery)
 import Network.HTTP.Types.Header
 import Network.HTTP.Types.Method
+import Network.HTTP.Types.Status
 import Network.Wai
 import Web.Cookie (parseCookies)
 
@@ -43,46 +42,68 @@ defaultConfig = Config
   , cFieldName = "xsrf_token"
   }
 
+cookieName, fieldName :: ByteString
+headerName :: HeaderName
 Config cookieName headerName fieldName = defaultConfig
 
--- |
--- Check that session token matches header token.
+-- | Check that session token matches header token.
 verifyXsrfToken :: Middleware
-verifyXsrfToken app req rsp
-  | requestMethod req == methodPost
-  , Just cXsrf <- getXsrfTokenFromCookie req
-  , Just hXsrf <- getXsrfTokenFromHeader req
-  = do
-      app req rsp
-  | otherwise = app req rsp
+verifyXsrfToken = ifRequest ((== methodPost) . requestMethod) $ \app req sendRsp -> do
+  if getXsrfTokenFromCookie req == getXsrfTokenFromHeader req
+    then app req sendRsp
+    else sendRsp rejectedRsp
 
--- |
--- A middleware that implements the "double submit cookie" approach
--- to CSRF mitigation.
+-- | An implementation of the "double submit cookie" CSRF mitigation.
 --
 -- Here, the session token is compared to a token passed via a hidden form
 -- input.
 --
+-- A check is performed if the request is a form POST request.
+--
+-- The request is accepted if it contains an XSRF token /and/ that token
+-- matches the session token.
+--
+-- The request is rejected if the form does not contain a token or the
+-- token fails to match.
+--
 -- The security of this approach relies /crucially/ on the attacker not being
--- able to write cookies on our behalf.  All our subdomains must be HTTPS only
--- for this to actually help mitigate CSRF attacks.
+-- able to write cookies on our behalf.  At the very least, we must be able to
+-- ensure that all subdomains are HTTPS only.
 doubleSubmitCookie :: Middleware
-doubleSubmitCookie = ifRequest isPostFormReq $ \app req rsp -> do
-  (body, req') <- getRequestBody req
-
+doubleSubmitCookie = ifRequest isPostFormReq $ \app req sendRsp -> do
+  (body, req') <- copyRequestBody req
   case lookup fieldName (parseQuery body) of
-    Just (Just token) -> do
-      -- TODO(joachifm) check session cookie vs. form token
-      putStrLn "doubleSubmitCookie: Found hidden input token"
-      app req' rsp
+    Just (Just pXsrfToken) -> do
+      case getXsrfTokenFromCookie req of
+        Just cXsrfToken ->
+          if cXsrfToken == pXsrfToken
+          then app req' sendRsp -- Accepted!
+          else do
+            putStr "XSRF-TOKEN mismatch: "
+            putStr "expected: " >> print cXsrfToken >> putStr "; "
+            putStr "got: " >> print pXsrfToken
+            putStrLn ""
+            sendRsp rejectedRsp
+
+        Nothing -> do
+          putStrLn "No session XSRF token"
+          sendRsp rejectedRsp
 
     Just Nothing -> do
-      putStrLn "doubleSubmitCookie: Hidden field contains no value!"
-      app req' rsp
+      putStrLn "Request contains no XSRF token parameter"
+      sendRsp rejectedRsp
 
     Nothing -> do
-      putStrLn "doubleSubmitCookie: No hidden input token"
-      app req' rsp
+      putStrLn "Request contains no XSRF token parameter"
+      sendRsp rejectedRsp
+
+rejectedRsp :: Response
+rejectedRsp
+  = responseLBS status401
+                [ (hContentType, "text/plain")
+                , ("WWW-Authenticate", "Basic")
+                ]
+                "XSRF token mismatch"
 
 -- |
 -- Automatically add session token to header.
@@ -96,8 +117,9 @@ cookieToHeader app req rsp
   = app (req { requestHeaders = (headerName, cXsrf) : requestHeaders req }) rsp
   | otherwise = app req rsp
 
-getRequestBody :: Request -> IO (ByteString, Request)
-getRequestBody req = do
+-- | Read a copy of the request body.
+copyRequestBody :: Request -> IO (ByteString, Request)
+copyRequestBody req = do
   -- Work around hidden state that prevents reading the body more than once
   -- See e.g., "wai-extra" Network.Wai.Middleware.MethodOverridePost.setPost
   body <- mconcat . LB.toChunks <$> lazyRequestBody req
@@ -109,11 +131,13 @@ getRequestBody req = do
 -- Internal utils
 ------------------------------------------------------------------------
 
+-- | Check whether request is a POST form request.
 isPostFormReq :: Request -> Bool
 isPostFormReq req
   = requestMethod req == methodPost &&
     lookup hContentType (requestHeaders req) == Just "application/x-www-form-urlencoded"
 
+-- | Extract session XSRF-TOKEN from cookie.
 getXsrfTokenFromCookie
   :: Request
   -> Maybe ByteString
@@ -121,8 +145,16 @@ getXsrfTokenFromCookie req
   = lookup cookieName =<<
     parseCookies <$> lookup "Cookie" (requestHeaders req)
 
+-- | Extract X-XSRF-TOKEN from request header.
 getXsrfTokenFromHeader
   :: Request
   -> Maybe ByteString
 getXsrfTokenFromHeader
   = lookup headerName . requestHeaders
+
+extractCookie
+  :: Request
+  -> ByteString
+  -> Maybe ByteString
+extractCookie req name = lookup name
+  =<< parseCookies <$> lookup hCookie (requestHeaders req)

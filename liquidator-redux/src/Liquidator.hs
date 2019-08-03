@@ -17,6 +17,7 @@ import Data.Aeson.Casing (aesonPrefix, snakeCase)
 import Data.IORef
 import Data.Maybe (fromMaybe)
 import Data.Time.Calendar
+import qualified Data.Text as Text
 import Servant
 import Servant.HTML.Lucid
 import System.Directory (renamePath)
@@ -156,6 +157,18 @@ getBalanceByDate h day
 sumit :: [(MoneyAmount, MoneyAmount)] -> (MoneyAmount, MoneyAmount)
 sumit = foldl' (\(za, zb) (a, b) -> (za + a, zb + b)) (0, 0)
 
+joinNotes
+  :: [Text]
+  -> Text
+joinNotes
+  = Text.intercalate ";"
+
+splitNotes
+  :: Text
+  -> [Text]
+splitNotes
+  = Text.split (`elem` [',', ';', '|'])
+
 ------------------------------------------------------------------------------
 
 renderNav :: Html ()
@@ -228,6 +241,7 @@ renderNewTransactionPage = simplePage "New" $ do
              , autofocus_
              , tabindex_ "1"
              ]
+    section_ $ do
       input_ [ name_ "amount_pri"
              , type_ "number"
              , placeholder_ "0"
@@ -244,16 +258,24 @@ renderNewTransactionPage = simplePage "New" $ do
              , value_ "0"
              , tabindex_ "3"
              ]
+    section_ $ do
       input_ [ name_ "day"
              , type_ "date"
              , required_ "required"
              , value_ "2019-01-01"
              , tabindex_ "4"
              ]
-    input_ [ type_ "submit"
-           , value_ "Create"
-           , tabindex_ "5"
-           ]
+    section_ $ do
+      input_ [ name_ "notes"
+             , type_ "text"
+             , placeholder_ "Note 1, note 2, note 3, ..."
+             , tabindex_ "5"
+             ]
+    section_ $ do
+      input_ [ type_ "submit"
+             , value_ "Create"
+             , tabindex_ "6"
+             ]
 
 renderTransactionsListPage
   :: [(GenericId, Transaction)]
@@ -294,6 +316,7 @@ renderEditTransactionByIdPage txid (Just txdata) = simplePage "Edit" $ do
                , autofocus_
                , tabindex_ "1"
                ]
+      section_ $ do
         input_ [ name_ "amount_pri"
                , type_ "number"
                , value_ (showText (fst (moneyToAmounts (transactionAmount txdata))))
@@ -308,15 +331,23 @@ renderEditTransactionByIdPage txid (Just txdata) = simplePage "Edit" $ do
                , max_ "99"
                , tabindex_ "3"
                ]
+      section_ $ do
         input_ [ name_ "day"
                , type_ "date"
                , value_ (showText (transactionDay txdata))
                , tabindex_ "4"
                ]
-      input_ [ type_ "submit"
-             , value_ "Apply changes"
-             , tabindex_ "5"
-             ]
+      section_ $ do
+        input_ [ name_ "notes"
+               , type_ "text"
+               , value_ (joinNotes (transactionNotes txdata))
+               , tabindex_ "5"
+               ]
+      section_ $ do
+        input_ [ type_ "submit"
+               , value_ "Apply changes"
+               , tabindex_ "6"
+               ]
 
 renderDeleteTransactionByIdPage
   :: GenericId
@@ -347,6 +378,7 @@ data TransactionFormData = TransactionFormData
   , transactionformAmountPri :: MoneyAmount
   , transactionformAmountSub :: Maybe MoneyAmount
   , transactionformDay :: Day
+  , transactionformNotes :: [Text]
   }
   deriving (Generic)
 
@@ -361,7 +393,7 @@ makeTransactionFromFormData formData = Transaction
   , transactionAmount = moneyFromAmount (transactionformAmountPri formData)
                                         (fromMaybe 0 (transactionformAmountSub formData))
   , transactionDay = transactionformDay formData
-  , transactionNotes = []
+  , transactionNotes = concatMap splitNotes (transactionformNotes formData)
   }
 
 ------------------------------------------------------------------------------
