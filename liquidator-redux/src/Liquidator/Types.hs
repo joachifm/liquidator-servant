@@ -46,6 +46,16 @@ aesonOptions = aesonPrefix snakeCase
 
 ------------------------------------------------------------------------------
 
+data Balance = Balance
+  { balanceAmount :: Money
+  , balanceTxCount :: Integer
+  , balanceStartDay :: Maybe Day
+  , balanceEndDay :: Maybe Day
+  }
+  deriving (Eq, Generic, FromJSON, ToJSON)
+
+------------------------------------------------------------------------------
+
 data Transaction = Transaction
   { transactionSubject :: Text
   , transactionAmount :: Money
@@ -65,12 +75,15 @@ splitNotes
   -> [Text]
 splitNotes = cleanNotes . Text.split noteSep
 
+noteSep
+  :: Char
+  -> Bool
+noteSep = (`elem` noteSepChars)
+
 cleanNotes
   :: [Text]
   -> [Text]
 cleanNotes = List.filter (not . Text.null) . map Text.strip
 
-noteSep
-  :: Char
-  -> Bool
-noteSep = (`elem` [',', ';', '|'])
+noteSepChars :: [Char]
+noteSepChars = [',', ';', '|']

@@ -76,8 +76,8 @@ currentDay = do
 
 data Handle = Handle
   { hConfig :: Config
-  , hNextId :: IO GenericId
   , hToday :: IO Day
+  , hNextId :: IO GenericId
   , hTransactions :: IORef (Map GenericId Transaction)
   }
 
@@ -85,8 +85,8 @@ newHandle :: Config -> IO Handle
 newHandle cfg =
   Handle
     <$> pure cfg
-    <*> (newIORef 1 >>= return . postIncIORef)
     <*> currentDay
+    <*> (newIORef 1 >>= return . postIncIORef)
     <*> newIORef mempty
 
 withHandle
@@ -156,20 +156,33 @@ deleteTransaction h txid = do
     Just _ -> do
       atomicModifyIORef' (hTransactions h) $ \m ->
         (Map.delete txid m, True)
-
     Nothing ->
       return False
+
+getBalanceByDateRange
+  :: Handle
+  -> Maybe Day
+  -> Maybe Day
+  -> IO Money
+getBalanceByDateRange h mbStart mbEnd
+  =   foldl' (+) 0 . map (transactionAmount . snd)
+  <$> (case rangePredicate mbStart mbEnd of
+         Just p  -> getFilteredTransactions h (p . transactionDay)
+         Nothing -> getAllTransactions h
+      )
 
 getBalanceByDate
   :: Handle
   -> Day
   -> IO Money
 getBalanceByDate h day
-  =   foldl' (+) 0 . map (transactionAmount . snd)
-  <$> getFilteredTransactions h ((<= day) . transactionDay)
+  = getBalanceByDateRange h Nothing (Just day)
 
-sumit :: [(MoneyAmount, MoneyAmount)] -> (MoneyAmount, MoneyAmount)
-sumit = foldl' (\(za, zb) (a, b) -> (za + a, zb + b)) (0, 0)
+rangePredicate :: (Ord a) => Maybe a -> Maybe a -> Maybe (a -> Bool)
+rangePredicate (Just start) (Just end) = Just (\x -> x >= start && x <= end)
+rangePredicate (Just start) Nothing    = Just (\x -> x >= start)
+rangePredicate Nothing (Just end)      = Just (\x ->               x <= end)
+rangePredicate Nothing Nothing         = Nothing
 
 ------------------------------------------------------------------------------
 
@@ -258,10 +271,11 @@ postDeleteTransactionByIdHandler h txid = do
 getBalanceByDatePageHandler
   :: Handle
   -> Maybe Day
+  -> Maybe Day
   -> IO (Html ())
-getBalanceByDatePageHandler h mbDay = do
-  day <- maybe (hToday h) pure mbDay
-  Views.viewBalanceByDatePage day <$> getBalanceByDate h day
+getBalanceByDatePageHandler h mbStartDay mbEndDay = do
+  endDay <- maybe (hToday h) pure mbEndDay
+  Views.viewBalanceByDatePage mbStartDay endDay <$> getBalanceByDateRange h mbStartDay (Just endDay)
 
 ------------------------------------------------------------------------
 

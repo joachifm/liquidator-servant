@@ -70,7 +70,8 @@ type Api
                      NoContent)
   -- /balance
   :<|> "balance" :>
-       QueryParam "day" Day :>
+       QueryParam "start_date" Day :>
+       QueryParam "end_date" Day :>
        Get '[HTML]
            (Html ())
 

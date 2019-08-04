@@ -12,6 +12,7 @@ import Liquidator.Types
 
 mainNav :: Html ()
 mainNav = nav_ $ do
+  -- TODO(joachifm) use apiLink for all href below
   span_ $ a_ [ href_ "/" ]        (text_ "Home")    >> text_ " | "
   span_ $ a_ [ href_ "/list" ]    (text_ "List")    >> text_ " | "
   span_ $ a_ [ href_ "/balance" ] (text_ "Balance") >> text_ " | "
@@ -127,6 +128,7 @@ transactionsListPage txlist = simplePage "List" $ do
   ul_ $ do
     forM_ txlist $ \(i, tx) -> do
       li_ $ do
+        -- TODO(joachifm) use apiLink here
         a_ [ href_ ("/view/" <> showText i) ] $
           text_ (showText i <> ":" <> transactionSubject tx)
 
@@ -137,8 +139,10 @@ viewTransactionByIdPage
   -> Html ()
 viewTransactionByIdPage txid = simplePage "View" $ do
   p_ $ do
+    -- TODO(joachifm) use apiLink here
     a_ [ href_ ("/edit/" <> showText txid) ] $ text_ "Edit"
   p_ $ do
+    -- TODO(joachifm) use apiLink here
     a_ [ href_ ("/delete/" <> showText txid) ] $ text_ "Delete"
 
 ------------------------------------------------------------------------
@@ -212,9 +216,13 @@ deleteTransactionByIdPage txid (Just _) = simplePage "Delete" $ do
 ------------------------------------------------------------------------
 
 viewBalanceByDatePage
-  :: Day
+  :: Maybe Day
+  -> Day
   -> Money
   -> Html ()
-viewBalanceByDatePage day amount = simplePage "Balance" $ do
-  p_ $ text_ ("Balance for day " <> showText day)
+viewBalanceByDatePage mbStartDay endDay amount = simplePage "Balance" $ do
+  p_ $ text_ $
+    "Balance as of "
+    <> maybe mempty ((<> " --- ") . showText) mbStartDay
+    <> showText endDay
   p_ $ text_ (ppMoney amount)

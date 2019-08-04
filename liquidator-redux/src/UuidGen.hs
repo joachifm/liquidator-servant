@@ -1,5 +1,3 @@
-{-# LANGUAGE Trustworthy #-}
-
 {-|
 Module: UuidGen
 -}

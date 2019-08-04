@@ -1,5 +1,5 @@
 { lib ? import (<nixpkgs> + "/lib")
-, pkgs ? import <nixpkgs> { config = {}; }
+, pkgs ? import <nixpkgs> { config = { }; }
 , selfSrc ? { outPath = pkgs.cleanSource ./.; }
 }:
 
