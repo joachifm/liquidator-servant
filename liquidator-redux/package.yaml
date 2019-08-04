@@ -36,9 +36,12 @@ dependencies:
   - aeson ^>=1.4.2
   - aeson-casing ^>=0.1.1.0
   - cookie ^>=0.4.4
+  - digestive-functors ^>=0.8.4
+  - digestive-functors-lucid
   - http-api-data ^>=0.3.10
   - http-types ^>=0.12.3
   - lucid ^>=2.9.11
+  - microlens-aeson ^>=2.3.0.1
   - optparse-applicative ^>=0.14.3.0
   - servant ^>=0.14.1
   - servant-lucid ^>=0.9
@@ -48,11 +51,9 @@ dependencies:
   - wai-extra ^>=3.0.25
   - warp ^>=3.2.26
 
-  # - digestive-functors
   # - ekg
   # - fast-logger
   # - jose
-  # - scotty
   # - servant-auth-server
   # - servant-elm
   # - servant-swagger

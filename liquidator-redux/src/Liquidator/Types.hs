@@ -49,6 +49,7 @@ aesonOptions = aesonPrefix snakeCase
 
 ------------------------------------------------------------------------------
 
+-- | A summary of an account balance.
 data Balance = Balance
   { balanceAmount :: Money
   , balanceTxCount :: Int
@@ -64,13 +65,11 @@ data BalanceSum = BalanceSum
   }
   deriving (Eq, Generic, FromJSON, ToJSON)
 
-sumBalance
-  :: [(GenericId, Transaction)]
-  -> BalanceSum
-sumBalance = foldl'
-  (\(BalanceSum c acc) ((_, Transaction { transactionAmount = amnt })) ->
-      BalanceSum (c + 1) (acc + amnt))
-  (BalanceSum 0 0)
+sumBalance :: [(GenericId, Transaction)] -> BalanceSum
+sumBalance = foldl' f (BalanceSum 0 0)
+  where f z x = z { balanceSumCount = balanceSumCount z + 1
+                  , balanceSumAmount = balanceSumAmount z + transactionAmount (snd x)
+                  }
 
 ------------------------------------------------------------------------------
 
