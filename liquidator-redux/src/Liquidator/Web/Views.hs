@@ -215,14 +215,15 @@ deleteTransactionByIdPage txid (Just _) = simplePage "Delete" $ do
 
 ------------------------------------------------------------------------
 
-viewBalanceByDatePage
-  :: Maybe Day
-  -> Day
-  -> Money
+viewBalancePage
+  :: Balance
   -> Html ()
-viewBalanceByDatePage mbStartDay endDay amount = simplePage "Balance" $ do
+viewBalancePage bal = simplePage "Balance" $ do
   p_ $ text_ $
     "Balance as of "
-    <> maybe mempty ((<> " --- ") . showText) mbStartDay
-    <> showText endDay
-  p_ $ text_ (ppMoney amount)
+    <> maybe mempty ((<> " --- ") . showText) (balanceStartDay bal)
+    <> maybe "today" showText                 (balanceEndDay bal)
+  p_ $ text_ $
+    "total: " <> ppMoney (balanceAmount bal)
+  p_ $ text_ $
+    "txcount: " <> showText (balanceTxCount bal)

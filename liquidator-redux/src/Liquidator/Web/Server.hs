@@ -38,9 +38,8 @@ import Data.Time.Clock (UTCTime(..), getCurrentTime)
 import Servant
 import qualified Network.Wai.Handler.Warp as Warp
 
-import IORef
-import Money
 import Html
+import IORef
 import Instances ()
 
 import Liquidator.Web.Api
@@ -163,9 +162,9 @@ getBalanceByDateRange
   :: Handle
   -> Maybe Day
   -> Maybe Day
-  -> IO Money
+  -> IO BalanceSum
 getBalanceByDateRange h mbStart mbEnd
-  =   foldl' (+) 0 . map (transactionAmount . snd)
+  =   sumBalance
   <$> (case rangePredicate mbStart mbEnd of
          Just p  -> getFilteredTransactions h (p . transactionDay)
          Nothing -> getAllTransactions h
@@ -174,7 +173,7 @@ getBalanceByDateRange h mbStart mbEnd
 getBalanceByDate
   :: Handle
   -> Day
-  -> IO Money
+  -> IO BalanceSum
 getBalanceByDate h day
   = getBalanceByDateRange h Nothing (Just day)
 
@@ -275,7 +274,9 @@ getBalanceByDatePageHandler
   -> IO (Html ())
 getBalanceByDatePageHandler h mbStartDay mbEndDay = do
   endDay <- maybe (hToday h) pure mbEndDay
-  Views.viewBalanceByDatePage mbStartDay endDay <$> getBalanceByDateRange h mbStartDay (Just endDay)
+  BalanceSum txcount txsum <- getBalanceByDateRange h mbStartDay (Just endDay)
+  pure . Views.viewBalancePage $
+    Balance txsum txcount mbStartDay (Just endDay)
 
 ------------------------------------------------------------------------
 

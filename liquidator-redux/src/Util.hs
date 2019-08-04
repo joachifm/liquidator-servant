@@ -9,11 +9,10 @@ module Util
   , whenJust
   ) where
 
-import           Data.Text (Text)
-import qualified Data.Text as Text
+import Data.String (IsString(..))
 
-showText :: (Show a) => a -> Text
-showText = Text.pack . show
+showText :: (IsString s, Show a) => a -> s
+showText = fromString . show
 
 whenJust :: (Monad m) => Maybe a -> (a -> m ()) -> m ()
 whenJust (Just x) act = act x
