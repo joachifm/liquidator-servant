@@ -22,6 +22,9 @@ ghc-options:
   -fhide-source-paths
   -fspecialise-aggressively
   -fexpose-all-unfoldings
+  -ddump-to-file
+  -ddump-simpl
+  -ddump-splices
 
 dependencies:
   - async ^>=2.2.1

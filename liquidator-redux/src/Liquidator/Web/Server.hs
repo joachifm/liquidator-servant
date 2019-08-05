@@ -175,25 +175,11 @@ getBalanceByDateRange h mbStart mbEnd
     rangePredicate Nothing (Just end)      = Just (\x ->               x <= end)
     rangePredicate Nothing Nothing         = Nothing
 
-getBalanceByDate
-  :: Handle
-  -> Day
-  -> IO BalanceSum
-getBalanceByDate h day
-  = getBalanceByDateRange h Nothing (Just day)
-
 getAllRecurringTransactions
   :: Handle
   -> IO [(GenericId, RecurringTransaction)]
 getAllRecurringTransactions h
   = Map.toList <$> readIORef (hRecurringTransactions h)
-
-getFilteredRecurringTransactions
-  :: Handle
-  -> (RecurringTransaction -> Bool)
-  -> IO [(GenericId, RecurringTransaction)]
-getFilteredRecurringTransactions h p
-  = Map.toList . Map.filter p <$> readIORef (hRecurringTransactions h)
 
 getRecurringTransactionById
   :: Handle
