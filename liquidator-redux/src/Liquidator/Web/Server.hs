@@ -169,6 +169,11 @@ getBalanceByDateRange h mbStart mbEnd
          Just p  -> getFilteredTransactions h (p . transactionDay)
          Nothing -> getAllTransactions h
       )
+  where
+    rangePredicate (Just start) (Just end) = Just (\x -> x >= start && x <= end)
+    rangePredicate (Just start) Nothing    = Just (\x -> x >= start)
+    rangePredicate Nothing (Just end)      = Just (\x ->               x <= end)
+    rangePredicate Nothing Nothing         = Nothing
 
 getBalanceByDate
   :: Handle
@@ -176,12 +181,6 @@ getBalanceByDate
   -> IO BalanceSum
 getBalanceByDate h day
   = getBalanceByDateRange h Nothing (Just day)
-
-rangePredicate :: (Ord a) => Maybe a -> Maybe a -> Maybe (a -> Bool)
-rangePredicate (Just start) (Just end) = Just (\x -> x >= start && x <= end)
-rangePredicate (Just start) Nothing    = Just (\x -> x >= start)
-rangePredicate Nothing (Just end)      = Just (\x ->               x <= end)
-rangePredicate Nothing Nothing         = Nothing
 
 ------------------------------------------------------------------------------
 

@@ -7,6 +7,8 @@
 Module: Money
 
 A representation of money amounts.
+
+TODO Replace with Data.Fixed?
 -}
 
 module Money
@@ -21,7 +23,7 @@ module Money
 #endif
 
     -- * Conversion
-  , moneyFromAmount
+  , moneyFromAmounts
   , moneyToAmounts
   , moneyToReal
 
@@ -51,14 +53,11 @@ newtype Money = MkMoney { moneyAmount :: MoneyAmount }
     ( Eq, Ord, Generic, FromJSON, ToJSON
 #ifdef TEST
     , Show
-    , Read
 #endif
     )
 
 instance IsString Money where
-  fromString x = case parseMoney (Text.pack x) of
-    Right v -> v
-    Left e  -> error ("fromString: " <> e)
+  fromString = either error id . parseMoney . Text.pack
 
 liftBinop
   :: (MoneyAmount -> MoneyAmount -> MoneyAmount)
@@ -66,11 +65,10 @@ liftBinop
 liftBinop op a b = MkMoney (moneyAmount a `op` moneyAmount b)
 
 instance Num Money where
-  fromInteger x = moneyFromAmount (fromInteger x) 0
+  fromInteger x = moneyFromAmounts (fromInteger x) 0
 
   (+) = liftBinop (+)
   (*) = liftBinop (*)
-  -- TODO(joachifm) unsafe ...
   (-) = liftBinop (-)
 
   abs = id
@@ -79,13 +77,13 @@ instance Num Money where
 
 -- | A 'Money' smart constructor.
 --
--- > moneyFromAmount 1 25
+-- > moneyFromAmounts 1 25
 -- MkMoney 125
-moneyFromAmount
+moneyFromAmounts
   :: MoneyAmount
   -> MoneyAmount
   -> Money
-moneyFromAmount a b = MkMoney (a * 100 + b)
+moneyFromAmounts a b = MkMoney (a * 100 + b)
 
 moneyToAmounts
   :: Money
@@ -130,4 +128,4 @@ parseMoney s = case Text.break (== '.') s of
   (a, b) -> do
     (hd, _) <- Text.decimal a
     (tl, _) <- Text.decimal (Text.drop 1 b)
-    return $! moneyFromAmount hd tl
+    return $! moneyFromAmounts hd tl

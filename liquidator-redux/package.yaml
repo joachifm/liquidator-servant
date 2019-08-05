@@ -35,6 +35,7 @@ dependencies:
 
   - aeson ^>=1.4.2
   - aeson-casing ^>=0.1.1.0
+  - auto-update ^>=0.1.4
   - cookie ^>=0.4.4
   - digestive-functors ^>=0.8.4
   - digestive-functors-lucid
@@ -51,26 +52,26 @@ dependencies:
   - wai-extra ^>=3.0.25
   - warp ^>=3.2.26
 
-  # - ekg
-  # - fast-logger
+  - ekg
+  - fast-logger
+  - servant-swagger ^>=1.1.6
+  - swagger2 ^>=2.3.1.1
+
   # - jose
   # - servant-auth-server
   # - servant-elm
-  # - servant-swagger
-  # - swagger2
   # - warp-tls
 
 library:
   source-dirs: src
   exposed-modules:
+    - Liquidator.Api
     - Liquidator.Types
-    - Liquidator.Web.Api
     - Liquidator.Web.Server
-    - Liquidator.Web.Types
 
 executables:
-  liquidator-server:
-    main: server.hs
+  liquidator-web-front-server:
+    main: web-front-server.hs
     source-dirs:
       - app
       - src

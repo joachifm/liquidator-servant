@@ -1,14 +1,14 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE StandaloneDeriving #-}
 
-module SpecInstances where
+module SpecInstances () where
 
 import Test.QuickCheck
 import Test.QuickCheck.Instances ()
 
 import Liquidator.Types
 import Liquidator.Web.Types
-import Money
+import Money (Money, moneyFromAmounts)
 
 ------------------------------------------------------------------------
 -- TransactionFormData
@@ -44,7 +44,7 @@ deriving instance Show Transaction
 ------------------------------------------------------------------------
 
 instance Arbitrary Money where
-  arbitrary = moneyFromAmount
-    <$> elements [0 .. 999999]
-    <*> elements [0 .. 999999]
+  arbitrary = moneyFromAmounts
+    <$> elements [ 0 .. 999999 ]
+    <*> elements [ 0 .. 99 ]
   shrink = genericShrink

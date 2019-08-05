@@ -44,8 +44,8 @@ makeTransactionFromFormData
   -> Transaction
 makeTransactionFromFormData formData = Transaction
   { transactionSubject = transactionformSubject formData
-  , transactionAmount = moneyFromAmount (transactionformAmountPri formData)
-                                        (fromMaybe 0 (transactionformAmountSub formData))
+  , transactionAmount = moneyFromAmounts (transactionformAmountPri formData)
+                                         (fromMaybe 0 (transactionformAmountSub formData))
   , transactionDay = transactionformDay formData
   , transactionNotes = concatMap splitNotes (transactionformNotes formData)
   }

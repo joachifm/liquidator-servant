@@ -33,9 +33,11 @@ instance E.Exception UiidGenException
 ------------------------------------------------------------------------
 
 -- | A variant of 'Data.UUID.V1.nextUUID' that retries generation in case of
--- failure, upto some maximum number of retries.
+-- failure (i.e., when new ids are requested too quickly), upto some maximum
+-- number of retries.
 --
--- Throws 'UuidGen.UiidGenException' iff exceeds maximum number of retries.
+-- Throws 'UuidGen.UiidGenException' after reaching the maximum number of
+-- retries.
 nextUuid :: IO Text
 nextUuid = loop (1000::Int)
   where

@@ -22,22 +22,22 @@ spec = do
 
   describe "moneyToReal" $ do
     it "converts a Money value to a float" $ do
-      moneyToReal (moneyFromAmount 1 25) == 1.25
+      moneyToReal (moneyFromAmounts 1 25) == 1.25
 
   describe "moneyToAmounts" $ do
     it "converts a Money value back to pairs" $ do
-      moneyToAmounts (moneyFromAmount 1 25) == (1, 25)
+      moneyToAmounts (moneyFromAmounts 1 25) == (1, 25)
 
     prop "is the inverse of moneyFromAmount" $ \(x::Money) ->
-      uncurry moneyFromAmount (moneyToAmounts x) == x
+      uncurry moneyFromAmounts (moneyToAmounts x) == x
 
   describe "ppMoney" $ do
     it "pretty-prints a Money value" $ do
-      ppMoney (moneyFromAmount 1 25) == "1.25"
+      ppMoney (moneyFromAmounts 1 25) == "1.25"
 
   describe "parseMoney" $ do
     it "reads a Money value" $ do
-      parseMoney "1.25" == Right (moneyFromAmount 1 25)
+      parseMoney "1.25" == Right (moneyFromAmounts 1 25)
 
     prop "is the inverse of ppMoney" $ \(x::Money) ->
       parseMoney (ppMoney x) == Right x

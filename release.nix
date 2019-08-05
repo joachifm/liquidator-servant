@@ -1,5 +1,5 @@
 { lib ? import (<nixpkgs> + "/lib")
-, pkgs ? import <nixpkgs> { config = { }; }
+, pkgs ? import <nixpkgs> { config = { allowBroken = true; }; }
 , selfSrc ? { outPath = pkgs.cleanSource ./.; }
 }:
 
@@ -46,9 +46,9 @@ let
     hpack
 
     ghcid
-    # hasktags
-    # hindent
-    # hlint
+    hasktags
+    hindent
+    hlint
 
     doctest
     hspec-discover

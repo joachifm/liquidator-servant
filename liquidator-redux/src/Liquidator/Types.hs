@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StrictData #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Liquidator.Types
   (
@@ -24,7 +25,7 @@ module Liquidator.Types
 
 import Imports
 
-import Data.Int (Int64)
+import Data.Int as X (Int64)
 import Data.Time.Calendar as X (Day)
 
 import qualified Data.List as List
@@ -66,10 +67,8 @@ data BalanceSum = BalanceSum
   deriving (Eq, Generic, FromJSON, ToJSON)
 
 sumBalance :: [(GenericId, Transaction)] -> BalanceSum
-sumBalance = foldl' f (BalanceSum 0 0)
-  where f z x = z { balanceSumCount = balanceSumCount z + 1
-                  , balanceSumAmount = balanceSumAmount z + transactionAmount (snd x)
-                  }
+sumBalance = foldl' f (BalanceSum 0 0) . map snd
+  where f (BalanceSum cnt amnt) x = BalanceSum (cnt + 1) (amnt + transactionAmount x)
 
 ------------------------------------------------------------------------------
 
@@ -80,6 +79,8 @@ data Transaction = Transaction
   , transactionNotes :: [Text]
   }
   deriving (Eq, Generic, FromJSON, ToJSON)
+
+------------------------------------------------------------------------------
 
 -- | Combine a set of notes into a separated string.
 joinNotes
