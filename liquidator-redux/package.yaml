@@ -92,6 +92,7 @@ tests:
 
     dependencies:
       - QuickCheck
+      - generic-arbitrary
       - hspec
       - quickcheck-instances
       - servant-quickcheck

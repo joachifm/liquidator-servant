@@ -11,7 +11,7 @@ import Test.Hspec.QuickCheck
 import Test.QuickCheck
 import Servant.QuickCheck
 
-import SpecInstances ()
+import Spec.Instances ()
 
 import Liquidator.Types
 import Liquidator.Web.Api
