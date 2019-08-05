@@ -68,12 +68,60 @@ type Api
        Verb 'POST 301 '[PlainText]
             (Headers '[ Header "Location" Text ]
                      NoContent)
+
   -- /balance
   :<|> "balance" :>
        QueryParam "start_date" Day :>
        QueryParam "end_date" Day :>
        Get '[HTML]
            (Html ())
+
+  -- /recurring/list
+  :<|> "recurring" :> "list" :>
+       Get '[HTML]
+           (Html ())
+
+  -- /recurring/new
+  :<|> "recurring" :> "new" :>
+       Get '[HTML]
+           (Html ())
+
+  :<|> "recurring" :> "new" :>
+       ReqBody '[FormUrlEncoded] RecurringTransactionFormData :>
+       Verb 'POST 301 '[PlainText]
+            (Headers '[ Header "Location" Text ]
+                     NoContent)
+
+  -- /recurring/view
+  :<|> "recurring" :> "view" :>
+       Capture "id" GenericId :>
+       Get '[HTML]
+           (Html ())
+
+  -- /recurring/edit
+  :<|> "recurring" :> "edit" :>
+       Capture "id" GenericId :>
+       Get '[HTML]
+           (Html ())
+
+  :<|> "recurring" :> "edit" :>
+       Capture "id" GenericId :>
+       ReqBody '[FormUrlEncoded] RecurringTransactionFormData :>
+       Verb 'POST 301 '[PlainText]
+            (Headers '[ Header "Location" Text ]
+                     NoContent)
+
+  -- /recurring/delete
+  :<|> "recurring" :> "delete" :>
+       Capture "id" GenericId :>
+       Get '[HTML]
+           (Html ())
+
+  :<|> "recurring" :> "delete" :>
+       Capture "id" GenericId :>
+       Verb 'POST 301 '[PlainText]
+            (Headers '[ Header "Location" Text ]
+                     NoContent)
 
 api :: Proxy Api
 api = Proxy

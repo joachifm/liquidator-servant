@@ -26,10 +26,10 @@ module Liquidator.Web.Server
 
 import Imports
 
-import Control.Monad (forever)
-import Control.Concurrent (forkIO, threadDelay)
 import Control.Monad.Except (ExceptT(ExceptT))
 import qualified Control.Exception as E
+
+import Control.AutoUpdate
 
 import Data.IORef
 import qualified Data.Map.Lazy as Map
@@ -60,32 +60,29 @@ defaultConfig = Config
 
 ------------------------------------------------------------------------------
 
--- | Getting the current time is a relatively expensive operation.  To
--- mitigate this cost, return a cached value that is updated periodically by a
--- hidden timer.
-currentDay :: IO (IO Day)
-currentDay = do
-  dayRef <- newIORef "1970-01-01"
-  _ <- forkIO $ forever $ do
-    writeIORef dayRef =<< utctDay <$> getCurrentTime
-    threadDelay (60 * 1000000) -- TODO(joachifm) delay until next day
-  return (readIORef dayRef)
+currentTime :: IO (IO UTCTime)
+currentTime = mkAutoUpdate defaultUpdateSettings
+  { updateAction = getCurrentTime
+  , updateFreq = 1000000
+  }
 
 ------------------------------------------------------------------------------
 
 data Handle = Handle
   { hConfig :: Config
-  , hToday :: IO Day
+  , hCurrentTime :: IO UTCTime
   , hNextId :: IO GenericId
   , hTransactions :: IORef (Map GenericId Transaction)
+  , hRecurringTransactions :: IORef (Map GenericId RecurringTransaction)
   }
 
 newHandle :: Config -> IO Handle
 newHandle cfg =
   Handle
     <$> pure cfg
-    <*> currentDay
+    <*> currentTime
     <*> (newIORef 1 >>= return . postIncIORef)
+    <*> newIORef mempty
     <*> newIORef mempty
 
 withHandle
@@ -94,6 +91,9 @@ withHandle
 withHandle = E.bracket
   (newHandle defaultConfig)
   (const $ return ())
+
+today :: Handle -> IO Day
+today h = utctDay <$> hCurrentTime h
 
 ------------------------------------------------------------------------------
 
@@ -181,6 +181,67 @@ getBalanceByDate
   -> IO BalanceSum
 getBalanceByDate h day
   = getBalanceByDateRange h Nothing (Just day)
+
+getAllRecurringTransactions
+  :: Handle
+  -> IO [(GenericId, RecurringTransaction)]
+getAllRecurringTransactions h
+  = Map.toList <$> readIORef (hRecurringTransactions h)
+
+getFilteredRecurringTransactions
+  :: Handle
+  -> (RecurringTransaction -> Bool)
+  -> IO [(GenericId, RecurringTransaction)]
+getFilteredRecurringTransactions h p
+  = Map.toList . Map.filter p <$> readIORef (hRecurringTransactions h)
+
+getRecurringTransactionById
+  :: Handle
+  -> GenericId
+  -> IO (Maybe RecurringTransaction)
+getRecurringTransactionById h txid
+  = Map.lookup txid <$> readIORef (hRecurringTransactions h)
+
+addRecurringTransaction
+  :: Handle
+  -> RecurringTransaction
+  -> IO GenericId
+addRecurringTransaction h tx = do
+  txid <- hNextId h
+  atomicModifyIORef' (hRecurringTransactions h) $ \m ->
+    (Map.insert txid tx m, txid)
+
+updateRecurringTransaction
+  :: Handle
+  -> GenericId
+  -> RecurringTransaction
+  -> IO (Maybe Bool)
+updateRecurringTransaction h txid tx = do
+  mbExisting <- getRecurringTransactionById h txid
+  case mbExisting of
+    Just txOld ->
+      atomicModifyIORef' (hRecurringTransactions h) $ \m ->
+        let
+          edited = tx /= txOld
+        in
+          ( if edited then Map.insert txid tx m else m
+          , Just edited
+          )
+    Nothing ->
+      return Nothing
+
+deleteRecurringTransaction
+  :: Handle
+  -> GenericId
+  -> IO Bool
+deleteRecurringTransaction h txid = do
+  mbStored <- getRecurringTransactionById h txid
+  case mbStored of
+    Just _ -> do
+      atomicModifyIORef' (hRecurringTransactions h) $ \m ->
+        (Map.delete txid m, True)
+    Nothing ->
+      return False
 
 ------------------------------------------------------------------------------
 
@@ -272,10 +333,83 @@ getBalanceByDatePageHandler
   -> Maybe Day
   -> IO (Html ())
 getBalanceByDatePageHandler h mbStartDay mbEndDay = do
-  endDay <- maybe (hToday h) pure mbEndDay
+  endDay <- maybe (today h) pure mbEndDay
   BalanceSum txcount txsum <- getBalanceByDateRange h mbStartDay (Just endDay)
   pure . Views.viewBalancePage $
     Balance txsum txcount mbStartDay (Just endDay)
+
+-- /recurring/new
+
+getNewRecurringTransactionPageHandler
+  :: Handle
+  -> IO (Html ())
+getNewRecurringTransactionPageHandler _ = do
+  pure Views.newRecurringTransactionPage
+
+postNewRecurringTransactionHandler
+  :: Handle
+  -> RecurringTransactionFormData
+  -> IO (Headers '[ Header "Location" Text
+                  ] NoContent)
+postNewRecurringTransactionHandler h formData = do
+  _ <- addRecurringTransaction h (makeRecurringTransactionFromFormData formData)
+  pure . addHeader "/recurring/list"
+       $ NoContent
+
+-- /recurring/list
+
+getRecurringTransactionsListPageHandler
+  :: Handle
+  -> IO (Html ())
+getRecurringTransactionsListPageHandler h
+  = Views.recurringTransactionsListPage <$> getAllRecurringTransactions h
+
+-- /recurring/view/:id
+
+getViewRecurringTransactionByIdPageHandler
+  :: Handle
+  -> GenericId
+  -> IO (Html ())
+getViewRecurringTransactionByIdPageHandler _ txid
+  = pure $ Views.viewRecurringTransactionByIdPage txid
+
+-- /recurring/edit/:id
+
+getEditRecurringTransactionByIdPageHandler
+  :: Handle
+  -> GenericId
+  -> IO (Html ())
+getEditRecurringTransactionByIdPageHandler h txid
+  = Views.editRecurringTransactionByIdPage txid <$> getRecurringTransactionById h txid
+
+postEditRecurringTransactionByIdHandler
+  :: Handle
+  -> GenericId
+  -> RecurringTransactionFormData
+  -> IO (Headers '[ Header "Location" Text
+                  ] NoContent)
+postEditRecurringTransactionByIdHandler h txid formData = do
+  _ <- updateRecurringTransaction h txid (makeRecurringTransactionFromFormData formData)
+  pure . addHeader "/recurring/list"
+       $ NoContent
+
+-- /recurring/delete/:id
+
+getDeleteRecurringTransactionByIdPageHandler
+  :: Handle
+  -> GenericId
+  -> IO (Html ())
+getDeleteRecurringTransactionByIdPageHandler h txid
+  = Views.deleteRecurringTransactionByIdPage txid <$> getRecurringTransactionById h txid
+postDeleteRecurringTransactionByIdHandler
+  :: Handle
+  -> GenericId
+  -> IO (Headers '[ Header "Location" Text
+                  ] NoContent)
+postDeleteRecurringTransactionByIdHandler h txid = do
+  _ <- deleteRecurringTransaction h txid
+  pure . addHeader "/recurring/list"
+       $ NoContent
 
 ------------------------------------------------------------------------
 
@@ -293,6 +427,14 @@ apiHandler h
   :<|> getDeleteTransactionByIdPageHandler h
   :<|> postDeleteTransactionByIdHandler h
   :<|> getBalanceByDatePageHandler h
+  :<|> getRecurringTransactionsListPageHandler h
+  :<|> getNewRecurringTransactionPageHandler h
+  :<|> postNewRecurringTransactionHandler h
+  :<|> getViewRecurringTransactionByIdPageHandler h
+  :<|> getEditRecurringTransactionByIdPageHandler h
+  :<|> postEditRecurringTransactionByIdHandler h
+  :<|> getDeleteRecurringTransactionByIdPageHandler h
+  :<|> postDeleteRecurringTransactionByIdHandler h
 
 ----------------------------------------------------------------------------
 

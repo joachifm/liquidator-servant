@@ -49,3 +49,47 @@ makeTransactionFromFormData formData = Transaction
   , transactionDay = transactionformDay formData
   , transactionNotes = concatMap splitNotes (transactionformNotes formData)
   }
+
+------------------------------------------------------------------------
+
+data RecurringTransactionFormData = RecurringTransactionFormData
+  { recurringtransactionformSubject :: Text
+  , recurringtransactionformAmountPri :: MoneyAmount
+  , recurringtransactionformAmountSub :: Maybe MoneyAmount
+  , recurringtransactionformNotes :: [Text]
+  , recurringtransactionformStartDate :: Day
+  , recurringtransactionformEndDate :: Maybe Day
+  , recurringtransactionformDayDelta :: Maybe Int64
+  , recurringtransactionformMonthDelta :: Maybe Int64
+  }
+  deriving (Generic)
+
+instance FromForm RecurringTransactionFormData where
+  fromForm = Form.genericFromForm formOptions
+
+instance ToForm RecurringTransactionFormData where
+  toForm = Form.genericToForm formOptions
+
+------------------------------------------------------------------------
+
+makeTransactionTemplateFromFormData
+  :: RecurringTransactionFormData
+  -> TransactionTemplate
+makeTransactionTemplateFromFormData formData = TransactionTemplate
+  { transactiontemplateSubject = recurringtransactionformSubject formData
+  , transactiontemplateAmount = moneyFromAmounts
+      (recurringtransactionformAmountPri formData)
+      (fromMaybe 0 (recurringtransactionformAmountSub formData))
+  , transactiontemplateNotes = concatMap splitNotes (recurringtransactionformNotes formData)
+  }
+
+makeRecurringTransactionFromFormData
+  :: RecurringTransactionFormData
+  -> RecurringTransaction
+makeRecurringTransactionFromFormData formData = RecurringTransaction
+  { recurringtransactionTemplate = makeTransactionTemplateFromFormData formData
+  , recurringtransactionDayDelta = recurringtransactionformDayDelta formData
+  , recurringtransactionMonthDelta = recurringtransactionformMonthDelta formData
+  , recurringtransactionStartDate = recurringtransactionformStartDate formData
+  , recurringtransactionEndDate = recurringtransactionformEndDate formData
+  }

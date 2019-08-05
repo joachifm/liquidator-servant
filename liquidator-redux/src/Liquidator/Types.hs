@@ -9,12 +9,14 @@ module Liquidator.Types
     aesonOptions
 
     -- * Types
-  , GenericId
-  , Transaction(..)
   , Balance(..)
   , BalanceSum(..)
-  , sumBalance
+  , GenericId
+  , RecurringTransaction(..)
+  , Transaction(..)
+  , TransactionTemplate(..)
 
+  , sumBalance
   , cleanNotes
   , joinNotes
   , splitNotes
@@ -57,14 +59,14 @@ data Balance = Balance
   , balanceStartDay :: Maybe Day
   , balanceEndDay :: Maybe Day
   }
-  deriving (Eq, Generic, FromJSON, ToJSON)
+  deriving (Eq, Generic, Typeable, FromJSON, ToJSON)
 
 -- | Accumulate count and sum total amount in a single traversal.
 data BalanceSum = BalanceSum
   { balanceSumCount  :: !Int
   , balanceSumAmount :: !Money
   }
-  deriving (Eq, Generic, FromJSON, ToJSON)
+  deriving (Eq, Generic, Typeable, FromJSON, ToJSON)
 
 sumBalance :: [(GenericId, Transaction)] -> BalanceSum
 sumBalance = foldl' f (BalanceSum 0 0) . map snd
@@ -79,6 +81,26 @@ data Transaction = Transaction
   , transactionNotes :: [Text]
   }
   deriving (Eq, Generic, FromJSON, ToJSON)
+
+------------------------------------------------------------------------------
+
+data TransactionTemplate = TransactionTemplate
+  { transactiontemplateSubject :: Text
+  , transactiontemplateAmount :: Money
+  , transactiontemplateNotes :: [Text]
+  }
+  deriving (Eq, Generic, Typeable, FromJSON, ToJSON)
+
+------------------------------------------------------------------------------
+
+data RecurringTransaction = RecurringTransaction
+  { recurringtransactionTemplate :: TransactionTemplate
+  , recurringtransactionDayDelta :: Maybe Int64
+  , recurringtransactionMonthDelta :: Maybe Int64
+  , recurringtransactionStartDate :: Day
+  , recurringtransactionEndDate :: Maybe Day
+  }
+  deriving (Eq, Generic, Typeable, FromJSON, ToJSON)
 
 ------------------------------------------------------------------------------
 

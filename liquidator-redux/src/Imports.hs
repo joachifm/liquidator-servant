@@ -9,6 +9,7 @@ module Imports
     module X
   ) where
 
+import Data.Typeable as X (Typeable)
 import GHC.Generics as X (Generic)
 
 import Control.Monad as X (ap, forM_, join)
