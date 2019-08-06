@@ -34,6 +34,8 @@ module Money
 
 import GHC.Generics (Generic)
 
+import Control.Applicative
+
 import Data.String (IsString(..))
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -57,7 +59,7 @@ newtype Money = MkMoney { moneyAmount :: MoneyAmount }
     )
 
 instance IsString Money where
-  fromString = either error id . parseMoney . Text.pack
+  fromString = either (error . ("fromString: " <>)) id . parseMoney . Text.pack
 
 liftBinop
   :: (MoneyAmount -> MoneyAmount -> MoneyAmount)
@@ -79,11 +81,23 @@ instance Num Money where
 --
 -- > moneyFromAmounts 1 25
 -- MkMoney 125
+--
+-- > moneyFromAmounts (-1) 25
+-- MkMoney -125
+--
+-- > moneyFromAmounts 1 (-25) -- ignore negative fractional part
+-- MkMoney 125
+--
+-- > moneyFromAmounts 1 99
+-- MkMoney 199
+--
+-- > moneyFromAmounts 1 100
+-- MkMoney 200
 moneyFromAmounts
-  :: MoneyAmount
-  -> MoneyAmount
+  :: MoneyAmount -- ^ Main currency unit
+  -> MoneyAmount -- ^ Fraction of main currency unit
   -> Money
-moneyFromAmounts a b = MkMoney (a * 100 + b)
+moneyFromAmounts main frac = MkMoney $ main * 100 + frac
 
 moneyToAmounts
   :: Money
@@ -105,7 +119,7 @@ ppMoney
   -> Text
 ppMoney
   = (\(a, b) -> Text.pack (show a <> "." <> show b))
-  . (`quotRem` 100) . moneyAmount
+  . moneyToAmounts
 
 -- | Read a textual representation of a money amount.
 --
@@ -123,9 +137,7 @@ ppMoney
 parseMoney
   :: Text
   -> Either String Money
-parseMoney s = case Text.break (== '.') s of
-  -- TODO(joachifm) a proper parser, please (?)
-  (a, b) -> do
-    (hd, _) <- Text.decimal a
-    (tl, _) <- Text.decimal (Text.drop 1 b)
-    return $! moneyFromAmounts hd tl
+parseMoney s = do
+  (m, r) <- Text.decimal s
+  f <- fst <$> Text.decimal (Text.drop 1 r) <|> pure 0
+  return (moneyFromAmounts m f)
