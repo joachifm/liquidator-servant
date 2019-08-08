@@ -5,8 +5,7 @@
 module Liquidator.Api where
 
 import Imports
-
-import Lens.Micro.Platform
+import Lens
 
 import Data.Swagger
 import Data.Aeson (FromJSON, ToJSON)

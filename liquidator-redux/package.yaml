@@ -31,7 +31,9 @@ dependencies:
   - base ^>=4.12.0
   - bytestring ^>=0.10.8
   - containers ^>=0.6.0
-  - microlens-platform ^>=0.3.11
+  - deepseq ^>=1.4.4.0
+  - lens-family
+  - lens-family-th
   - mtl ^>=2.2.2
   - text ^>=1.2.3
   - time ^>=1.8.0
@@ -86,11 +88,10 @@ tests:
   spec:
     main: Spec.hs
     source-dirs:
-      - test
+      - test/spec
       - src
 
     cpp-options: -DTEST
-
     ghc-options: -O0 -threaded "-with-rtsopts=-N"
 
     dependencies:
@@ -102,3 +103,17 @@ tests:
 
     build-tools:
       - hspec-discover
+
+  doctest:
+    main: doctest-driver.hs
+    source-dirs:
+      - test/doctest
+
+    cpp-options: -DTEST
+    ghc-options: -O0 -threaded "-with-rtsopts=-N"
+
+    dependencies:
+      - doctest
+
+    build-tools:
+      - doctest-discover

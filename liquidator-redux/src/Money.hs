@@ -7,8 +7,6 @@
 Module: Money
 
 A representation of money amounts.
-
-TODO Replace with Data.Fixed?
 -}
 
 module Money
@@ -47,9 +45,6 @@ import Data.Aeson (FromJSON, ToJSON)
 type MoneyAmount = Integer
 
 -- | A representation of an amount of money (in an unspecified currency).
---
--- Internally, the amount is specified relative to unit 100, allowing for upto
--- two decimals.
 newtype Money = MkMoney { moneyAmount :: MoneyAmount }
   deriving
     ( Eq, Ord, Generic, FromJSON, ToJSON
@@ -97,7 +92,7 @@ moneyFromAmounts
   :: MoneyAmount -- ^ Main currency unit
   -> MoneyAmount -- ^ Fraction of main currency unit
   -> Money
-moneyFromAmounts main frac = MkMoney $ main * 100 + frac
+moneyFromAmounts main frac = MkMoney $ main * 100 + (abs frac)
 
 moneyToAmounts
   :: Money

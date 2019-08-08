@@ -51,6 +51,7 @@ let
     hlint
 
     doctest
+    doctest-discover
     hspec-discover
   ]);
 
