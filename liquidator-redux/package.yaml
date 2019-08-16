@@ -20,9 +20,8 @@ ghc-options:
   -Wpartial-fields
   -Wredundant-constraints
   -fhide-source-paths
-  -fspecialise-aggressively
-  -fexpose-all-unfoldings
   -ddump-to-file
+  -ddump-deriv
   -ddump-simpl
   -ddump-splices
 
@@ -82,7 +81,11 @@ executables:
       - app
       - src
 
-    ghc-options: -threaded -rtsopts
+    ghc-options:
+      -threaded
+      -rtsopts
+      -fspecialise-aggressively
+      -fexpose-all-unfoldings
 
 tests:
   spec:
