@@ -8,7 +8,7 @@ import Imports
 import Lens
 
 import Data.Swagger
-import Data.Aeson (FromJSON, ToJSON)
+--import Data.Aeson (FromJSON, ToJSON)
 
 import Servant
 import Servant.Swagger

@@ -2,8 +2,36 @@
 .ONESHELL:
 .SUFFIXES:
 
+.PHONY: all
+all: quickbuild
+
+.PHONY: repl
+repl: configure
+	./cabal new-repl liquidator-redux
+
+.PHONY: build
+build:
+	nix build -f release.nix haskellPackagesLocal.liquidator-redux
+
+.PHONY: quickbuild
+quickbuild: configure
+	./cabal new-build all
+
+.PHONY: configure
+configure: preconfigure cabal.project.local
+
+.PHONY: preconfigure
+preconfigure: liquidator-redux/liquidator-redux.cabal
+
+.PHONY: test
+test: preconfigure
+	./cabal new-test all
+
+
+# Productions
+
 liquidator-redux/liquidator-redux.cabal: liquidator-redux/package.yaml
-	( cd liquidator-redux && hpack package.yaml )
+	(cd liquidator-redux && hpack)
 
 cabal.project.local: cabal.project
 	./cabal new-configure \

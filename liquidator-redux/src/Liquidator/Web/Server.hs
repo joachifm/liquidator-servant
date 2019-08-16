@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StrictData #-}
@@ -11,7 +10,6 @@ module Liquidator.Web.Server
 
     -- * Handle
   , Handle
-  , newHandle
   , withHandle
 
     -- * Servant handler
