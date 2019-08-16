@@ -8,8 +8,23 @@ license: 'AGPL-3.0-or-later'
 author: Joachim Fasting
 maintainer: joachifm@fastmail.fm
 
+# The "dialect" of Haskell we're using
 default-extensions:
+  AutoDeriveTypeable
+  BangPatterns
+  ConstraintKinds
+  DataKinds
+  DefaultSignatures
+  GADTs
+  LambdaCase
+  MonadFailDesugaring
+  MultiWayIf
+  OverloadedStrings
+  ScopedTypeVariables
   StrictData
+  TupleSections
+  TypeFamilies
+  ViewPatterns
 
 ghc-options:
   -Wno-unused-top-binds
@@ -48,8 +63,8 @@ dependencies:
   - servant
   - servant-lucid
   - servant-server
-  - swagger2
   - servant-swagger
+  - swagger2
   - uuid
   - wai
   - warp
@@ -69,10 +84,8 @@ executables:
       - src
 
     ghc-options:
-      -threaded
-      -rtsopts
-      -fspecialise-aggressively
-      -fexpose-all-unfoldings
+      -threaded -rtsopts
+      -fexpose-all-unfoldings -fspecialise-aggressively
 
 tests:
   spec:
