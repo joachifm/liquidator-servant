@@ -92,17 +92,3 @@ tests:
 
     build-tools:
       - hspec-discover
-
-  doctest:
-    main: doctest-driver.hs
-    source-dirs:
-      - test/doctest
-
-    cpp-options: -DTEST
-    ghc-options: -O0 -threaded "-with-rtsopts=-N"
-
-    dependencies:
-      - doctest
-
-    build-tools:
-      - doctest-discover
