@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# HLINT ignore "Redundant do" #-}
 
 module Liquidator.Web.Views where
 

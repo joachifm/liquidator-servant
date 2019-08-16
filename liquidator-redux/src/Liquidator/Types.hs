@@ -2,7 +2,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StrictData #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 module Liquidator.Types
   (
@@ -128,5 +127,5 @@ cleanNotes = List.filter (not . Text.null)
   where sepStr = map (\x -> Text.pack [x]) noteSepChars
 
 -- | Note string separators.
-noteSepChars :: [Char]
+noteSepChars :: String
 noteSepChars = [',', ';', '|']

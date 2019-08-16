@@ -79,7 +79,7 @@ newHandle cfg =
   Handle
     <$> pure cfg
     <*> currentTime
-    <*> (newIORef 1 >>= return . postIncIORef)
+    <*> (postIncIORef <$> newIORef 1)
     <*> newIORef mempty
     <*> newIORef mempty
 
@@ -150,7 +150,7 @@ deleteTransaction
 deleteTransaction h txid = do
   mbStored <- getTransactionById h txid
   case mbStored of
-    Just _ -> do
+    Just _ ->
       atomicModifyIORef' (hTransactions h) $ \m ->
         (Map.delete txid m, True)
     Nothing ->
@@ -453,7 +453,7 @@ warpSettings
   $ Warp.defaultSettings
 
 announce :: (Warp.Settings -> Warp.Settings)
-announce = \ws -> flip Warp.setBeforeMainLoop ws $ putStrLn $
+announce ws = flip Warp.setBeforeMainLoop ws $ putStrLn $
       "Listening on " <> show (Warp.getHost ws)
                       <> ":"
                       <> show (Warp.getPort ws)
