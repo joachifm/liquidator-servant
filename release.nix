@@ -75,4 +75,9 @@ rec {
 
   inherit haskellPackagesLocal;
 
+  build = {
+    inherit (haskellPackagesLocal)
+      liquidator-redux;
+  };
+
 }
