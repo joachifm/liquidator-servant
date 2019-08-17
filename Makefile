@@ -3,7 +3,7 @@
 .SUFFIXES:
 
 .PHONY: all
-all: quickbuild
+all: lint quickbuild test
 
 .PHONY: repl
 repl: configure
@@ -26,6 +26,10 @@ preconfigure: liquidator-redux/liquidator-redux.cabal
 .PHONY: test
 test: preconfigure
 	./cabal new-test all
+
+.PHONY: lint
+lint:
+	nix-shell --run "hlint --no-exit-code --report liquidator-redux/src"
 
 
 # Productions

@@ -2,8 +2,9 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE StrictData #-}
 
-module Liquidator.Web.Types where
+module Liquidator.WebFront.Types where
 
+import Control.DeepSeq (NFData)
 import Data.Maybe (fromMaybe)
 
 import Web.FormUrlEncoded (FromForm, ToForm)
@@ -29,7 +30,7 @@ data TransactionFormData = TransactionFormData
   , transactionformDay :: Day
   , transactionformNotes :: [Text]
   }
-  deriving (Generic)
+  deriving (Generic, NFData)
 
 instance FromForm TransactionFormData where
   fromForm = Form.genericFromForm formOptions
@@ -62,7 +63,7 @@ data RecurringTransactionFormData = RecurringTransactionFormData
   , recurringtransactionformDayDelta :: Maybe Int64
   , recurringtransactionformMonthDelta :: Maybe Int64
   }
-  deriving (Generic)
+  deriving (Generic, NFData)
 
 instance FromForm RecurringTransactionFormData where
   fromForm = Form.genericFromForm formOptions

@@ -74,7 +74,7 @@ library:
   exposed-modules:
     - Liquidator.Api
     - Liquidator.Types
-    - Liquidator.Web.Server
+    - Liquidator.WebFront.Server
 
 executables:
   liquidator-web-front-server:
@@ -105,3 +105,13 @@ tests:
 
     build-tools:
       - hspec-discover
+
+  hlint:
+    main: hlint.hs
+    source-dirs:
+      - test/hlint
+
+    ghc-options: -O0 -threaded "-with-rtsopts=-N"
+
+    dependencies:
+      - hlint

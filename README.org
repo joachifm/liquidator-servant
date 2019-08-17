@@ -1,0 +1,7 @@
+* Usage
+
+Open a REPL with the liquidator-api package loaded:
+
+#+begin_src sh :eval never
+  ./cabal new-repl liquidator-api
+#+end_src

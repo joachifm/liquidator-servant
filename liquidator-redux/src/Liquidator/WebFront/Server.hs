@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StrictData #-}
 
-module Liquidator.Web.Server
+module Liquidator.WebFront.Server
   (
     -- * Config
     Config(..)
@@ -40,8 +40,8 @@ import Html
 import IORef
 import Instances ()
 
-import Liquidator.Web.Api
-import qualified Liquidator.Web.Views as Views
+import Liquidator.WebFront.Api
+import qualified Liquidator.WebFront.Views as Views
 
 ------------------------------------------------------------------------------
 

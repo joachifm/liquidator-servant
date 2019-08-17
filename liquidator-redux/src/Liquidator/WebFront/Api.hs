@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators #-}
 
-module Liquidator.Web.Api
+module Liquidator.WebFront.Api
   ( Api
   , api
     -- * Re-exports
@@ -16,7 +16,7 @@ import Servant.HTML.Lucid
 import Imports
 
 import Liquidator.Types as X
-import Liquidator.Web.Types as X
+import Liquidator.WebFront.Types as X
 
 type Api
   =    Get '[HTML]

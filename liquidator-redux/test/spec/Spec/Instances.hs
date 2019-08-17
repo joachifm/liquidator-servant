@@ -8,7 +8,7 @@ import Test.QuickCheck.Instances ()
 import Test.QuickCheck.Arbitrary.Generic
 
 import Liquidator.Types
-import Liquidator.Web.Types
+import Liquidator.WebFront.Types
 import Money (Money, moneyFromAmounts)
 
 ------------------------------------------------------------------------

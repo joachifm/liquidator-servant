@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# HLINT ignore "Redundant do" #-}
 
-module Liquidator.Web.Views where
+module Liquidator.WebFront.Views where
 
 import Html
 import Imports

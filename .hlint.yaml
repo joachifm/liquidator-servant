@@ -1,0 +1,15 @@
+- ignore: {name: "Avoid lambda"}
+- ignore: {name: "Redundant $"}
+- ignore: {name: "Redundant bracket"}
+- ignore: {name: "Redundant do"}
+- ignore: {name: "Use ?~"}
+- ignore: {name: "Use camelCase"}
+
+
+# Additional commandline arguments
+- arguments: [-j,--color,--cross]
+
+
+# Control which extensions/flags/modules/functions can be used
+- functions:
+    - {name: unsafePerformIO, within: []}
