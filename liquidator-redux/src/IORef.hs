@@ -3,9 +3,17 @@
 module IORef
   ( atomicModifyIORef'_
   , postIncIORef
+
+    -- * Re-exports
+  , module X
   ) where
 
-import Data.IORef
+import Data.IORef as X
+  ( IORef
+  , atomicModifyIORef'
+  , newIORef
+  , readIORef
+  )
 
 postIncIORef :: (Integral a) => IORef a -> IO a
 postIncIORef = flip atomicModifyIORef' (\i -> (i + 1, i))

@@ -100,8 +100,8 @@ moneyToAmounts
 moneyToAmounts = (`quotRem` 100) . moneyAmount
 
 -- | A one-way conversion from 'Money' to a real value.
-moneyToReal :: Money -> Float
-moneyToReal = (/ 100) . (fromIntegral :: MoneyAmount -> Float) . moneyAmount
+moneyToReal :: Money -> Double
+moneyToReal = (/ 100) . fromInteger . moneyAmount
 
 -- | Pretty-print a money amount.
 --

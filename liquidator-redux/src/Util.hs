@@ -9,7 +9,7 @@ module Util
   , whenJust
   ) where
 
-import Data.String (IsString(..))
+import           Data.String (IsString(..))
 
 showText :: (IsString s, Show a) => a -> s
 showText = fromString . show

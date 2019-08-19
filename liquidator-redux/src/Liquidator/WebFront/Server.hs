@@ -29,7 +29,6 @@ import qualified Control.Exception as E
 
 import Control.AutoUpdate
 
-import Data.IORef
 import qualified Data.Map.Lazy as Map
 import Data.Time.Clock (UTCTime(..), getCurrentTime)
 

@@ -12,11 +12,14 @@ module Imports
 import Data.Typeable as X (Typeable)
 import GHC.Generics as X (Generic)
 
-import Control.Monad as X (ap, forM_, join)
+import Control.Monad as X (ap, forM_, foldM, foldM_, join)
 import Data.Foldable as X
   ( foldl'
   , sum
   , product
+  )
+import Data.Traversable as X
+  ( travrerse
   )
 
 import Data.Int as X (Int64)
