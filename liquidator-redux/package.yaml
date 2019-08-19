@@ -26,8 +26,15 @@ default-extensions:
   TypeFamilies
   ViewPatterns
 
+flags:
+  prod:
+    description: Production build
+    manual: True
+    default: False
+
 ghc-options:
   -Wall
+  -Wall-missed-specialisations
   -Wcompat
   -Widentities
   -Wincomplete-record-updates
@@ -36,12 +43,9 @@ ghc-options:
   -Wno-unused-top-binds
   -Wpartial-fields
   -Wredundant-constraints
-  -ddump-deriv
-  -ddump-inlinings
-  -ddump-simpl
-  -ddump-splices
-  -ddump-to-file
   -fhide-source-paths
+  -ddump-to-file
+  -ddump-deriv
 
 dependencies:
   # Haskell Platform
@@ -87,7 +91,10 @@ executables:
 
     ghc-options:
       -threaded -rtsopts
-      -fexpose-all-unfoldings -fspecialise-aggressively
+
+    when:
+      - condition: flag(prod)
+        ghc-options: -fexpose-all-unfoldings -fspecialise-aggressively
 
 tests:
   spec:
