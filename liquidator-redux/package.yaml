@@ -37,6 +37,7 @@ ghc-options:
   -Wpartial-fields
   -Wredundant-constraints
   -ddump-deriv
+  -ddump-inlinings
   -ddump-simpl
   -ddump-splices
   -ddump-to-file
