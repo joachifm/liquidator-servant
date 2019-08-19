@@ -283,7 +283,7 @@ recurringTransactionsListPage
   -> Html ()
 recurringTransactionsListPage txlist = simplePage "List" $ do
   ul_ $ do
-    forM_ txlist $ \(i, tx) -> do
+    forM_ txlist $ \(i, _) -> do
       li_ $ do
         -- TODO(joachifm) use apiLink here
         a_ [ href_ ("/recurring/view/" <> showText i) ] $
@@ -312,7 +312,7 @@ editRecurringTransactionByIdPage
   -> Html ()
 editRecurringTransactionByIdPage txid Nothing = simplePage "Invalid recurring transaction id" $ do
   p_ $ text_ ("Recurring transaction id not found: " <> showText txid)
-editRecurringTransactionByIdPage txid (Just txdata) = simplePage "Edit" $ do
+editRecurringTransactionByIdPage txid (Just _) = simplePage "Edit" $ do
   form_ [ name_ "edit"
         , action_ ("/recurring/edit/" <> showText txid)
         , method_ "post"

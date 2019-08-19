@@ -5,21 +5,55 @@ Common imports
 -}
 
 module Imports
-  ( -- * Re-exports
+  ( compose
+  , identity
+
+  , -- * Re-exports
     module X
   ) where
 
 import Data.Typeable as X (Typeable)
 import GHC.Generics as X (Generic)
 
-import Control.Monad as X (ap, forM_, foldM, foldM_, join)
+import Data.Functor as X
+import Data.Functor.Const as X
+import Data.Functor.Contravariant as X
+import Data.Functor.Identity as X
+
+import Control.Applicative as X
+
+import Control.Monad as X
+  ( ap
+  , join
+  , (=<<)
+  , (>=>)
+  , (<=<)
+  )
+
+import Data.Monoid as X
+  ( Monoid(..)
+  , Endo(..)
+  , Sum(..)
+  , Product(..)
+  , Last(..)
+  , First(..)
+  )
+
 import Data.Foldable as X
   ( foldl'
-  , sum
+  , foldMap
+  , foldr
   , product
+  , sum
+  , forM_
+  , mapM_
   )
+
 import Data.Traversable as X
-  ( travrerse
+  ( for
+  , forM
+  , mapM
+  , traverse
   )
 
 import Data.Int as X (Int64)
@@ -29,3 +63,10 @@ import Data.ByteString as X (ByteString)
 import Data.Text as X (Text)
 
 import Data.Map as X (Map)
+
+
+identity :: a -> a
+identity = id
+
+compose :: [a -> a] -> (a -> a)
+compose = appEndo . foldMap Endo
